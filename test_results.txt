@@ -1,0 +1,5 @@
+
+[1m[94m
+
+[91mTest suite failed with error: 'cp949' codec can't encode character '\u2554' in position 0: illegal multibyte sequence[0m
+

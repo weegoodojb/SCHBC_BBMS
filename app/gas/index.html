@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SCHBC BBMS - 혈액 재고 입력</title>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      background: #f5f5f5;
+      padding: 8px;
+      -webkit-text-size-adjust: 100%;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    
+    /* 헤더 */
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 16px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .header p {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    
+    /* 로그인 영역 */
+    .login-section {
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e0e0e0;
+      display: none;
+    }
+    
+    .login-section.active {
+      display: block;
+    }
+    
+    .login-form {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    .login-form input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .login-form button {
+      padding: 8px 16px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    
+    .login-form button:active {
+      background: #5568d3;
+    }
+    
+    .user-info {
+      display: none;
+      padding: 8px 12px;
+      background: #e8f5e9;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    
+    .user-info.active {
+      display: block;
+    }
+    
+    /* 그리드 테이블 */
+    .grid-section {
+      padding: 12px;
+      overflow-x: auto;
+    }
+    
+    .grid-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    
+    .grid-table th {
+      background: #f5f5f5;
+      padding: 6px 4px;
+      text-align: center;
+      font-weight: 600;
+      border: 1px solid #ddd;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    
+    .grid-table td {
+      padding: 4px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    
+    .grid-table td.blood-type {
+      background: #f0f0f0;
+      font-weight: 600;
+      font-size: 14px;
+      width: 40px;
+    }
+    
+    .grid-table input[type="number"] {
+      width: 100%;
+      padding: 6px 4px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 14px;
+      -webkit-appearance: none;
+      -moz-appearance: textfield;
+    }
+    
+    .grid-table input[type="number"]:focus {
+      outline: none;
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+    
+    /* Chrome, Safari, Edge */
+    .grid-table input[type="number"]::-webkit-inner-spin-button,
+    .grid-table input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    
+    /* 하단 영역 */
+    .bottom-section {
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .remark-group {
+      margin-bottom: 12px;
+    }
+    
+    .remark-group label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 500;
+      font-size: 13px;
+    }
+    
+    .remark-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    /* 메시지 */
+    .message {
+      padding: 12px;
+      margin: 12px 16px;
+      border-radius: 4px;
+      font-size: 13px;
+      display: none;
+    }
+    
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .message.active {
+      display: block;
+    }
+    
+    /* 로딩 */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: #667eea;
+    }
+    
+    .loading.active {
+      display: block;
+    }
+    
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* 반응형 */
+    @media (max-width: 480px) {
+      body {
+        padding: 4px;
+      }
+      
+      .grid-table {
+        font-size: 12px;
+      }
+      
+      .grid-table th {
+        padding: 4px 2px;
+        font-size: 11px;
+      }
+      
+      .grid-table input[type="number"] {
+        padding: 4px 2px;
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 헤더 -->
+    <div class="header">
+      <h1>🩸 SCHBC BBMS</h1>
+      <p>혈액 재고 관리 시스템</p>
+    </div>
+    
+    <!-- 로그인 영역 -->
+    <div class="login-section active" id="loginSection">
+      <form class="login-form" id="loginForm">
+        <input type="text" id="empId" placeholder="사번" required>
+        <input type="password" id="password" placeholder="비밀번호" required>
+        <button type="submit">로그인</button>
+      </form>
+    </div>
+    
+    <!-- 사용자 정보 -->
+    <div class="user-info" id="userInfo">
+      <span id="userName"></span> 님 로그인됨
+    </div>
+    
+    <!-- 메시지 -->
+    <div class="message" id="message"></div>
+    
+    <!-- 로딩 -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div>처리 중...</div>
+    </div>
+    
+    <!-- 그리드 테이블 -->
+    <div class="grid-section">
+      <table class="grid-table">
+        <thead>
+          <tr>
+            <th>혈액형</th>
+            <th>PRBC</th>
+            <th>Pre-R</th>
+            <th>PC</th>
+            <th>SDP</th>
+            <th>FFP</th>
+            <th>Cryo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="blood-type">A</td>
+            <td><input type="number" id="A_PRBC" placeholder="0"></td>
+            <td><input type="number" id="A_Pre-R" placeholder="0"></td>
+            <td><input type="number" id="A_PC" placeholder="0"></td>
+            <td><input type="number" id="A_SDP" placeholder="0"></td>
+            <td><input type="number" id="A_FFP" placeholder="0"></td>
+            <td><input type="number" id="A_Cryo" placeholder="0"></td>
+          </tr>
+          <tr>
+            <td class="blood-type">B</td>
+            <td><input type="number" id="B_PRBC" placeholder="0"></td>
+            <td><input type="number" id="B_Pre-R" placeholder="0"></td>
+            <td><input type="number" id="B_PC" placeholder="0"></td>
+            <td><input type="number" id="B_SDP" placeholder="0"></td>
+            <td><input type="number" id="B_FFP" placeholder="0"></td>
+            <td><input type="number" id="B_Cryo" placeholder="0"></td>
+          </tr>
+          <tr>
+            <td class="blood-type">O</td>
+            <td><input type="number" id="O_PRBC" placeholder="0"></td>
+            <td><input type="number" id="O_Pre-R" placeholder="0"></td>
+            <td><input type="number" id="O_PC" placeholder="0"></td>
+            <td><input type="number" id="O_SDP" placeholder="0"></td>
+            <td><input type="number" id="O_FFP" placeholder="0"></td>
+            <td><input type="number" id="O_Cryo" placeholder="0"></td>
+          </tr>
+          <tr>
+            <td class="blood-type">AB</td>
+            <td><input type="number" id="AB_PRBC" placeholder="0"></td>
+            <td><input type="number" id="AB_Pre-R" placeholder="0"></td>
+            <td><input type="number" id="AB_PC" placeholder="0"></td>
+            <td><input type="number" id="AB_SDP" placeholder="0"></td>
+            <td><input type="number" id="AB_FFP" placeholder="0"></td>
+            <td><input type="number" id="AB_Cryo" placeholder="0"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- 하단 영역 -->
+    <div class="bottom-section">
+      <div class="remark-group">
+        <label for="remark">비고 (필수)</label>
+        <textarea id="remark" placeholder="입출고 사유를 입력하세요"></textarea>
+      </div>
+      
+      <div class="button-group">
+        <button class="btn btn-secondary" onclick="clearForm()">초기화</button>
+        <button class="btn btn-primary" onclick="submitForm()">재고 저장</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let currentUser = null;
+    
+    // 로그인 처리
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const empId = document.getElementById('empId').value;
+      const password = document.getElementById('password').value;
+      
+      showLoading(true);
+      hideMessage();
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showLoading(false);
+          if (result.success) {
+            currentUser = result.data;
+            document.getElementById('loginSection').classList.remove('active');
+            document.getElementById('userInfo').classList.add('active');
+            document.getElementById('userName').textContent = result.data.name;
+            showMessage('로그인 성공!', 'success');
+          } else {
+            showMessage('로그인 실패: ' + result.error, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showLoading(false);
+          showMessage('오류: ' + error.message, 'error');
+        })
+        .loginUser({emp_id: empId, password: password});
+    });
+    
+    // 폼 제출
+    function submitForm() {
+      if (!currentUser) {
+        showMessage('먼저 로그인하세요', 'error');
+        return;
+      }
+      
+      const remark = document.getElementById('remark').value.trim();
+      if (!remark) {
+        showMessage('비고를 입력하세요', 'error');
+        return;
+      }
+      
+      // 그리드 데이터 수집
+      const formData = {remark: remark};
+      const bloodTypes = ['A', 'B', 'O', 'AB'];
+      const preps = ['PRBC', 'Pre-R', 'PC', 'SDP', 'FFP', 'Cryo'];
+      
+      let hasData = false;
+      bloodTypes.forEach(bt => {
+        preps.forEach(prep => {
+          const id = `${bt}_${prep}`;
+          const value = document.getElementById(id).value;
+          if (value && value !== '0') {
+            formData[id] = value;
+            hasData = true;
+          }
+        });
+      });
+      
+      if (!hasData) {
+        showMessage('입력된 재고 데이터가 없습니다', 'error');
+        return;
+      }
+      
+      showLoading(true);
+      hideMessage();
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showLoading(false);
+          if (result.success) {
+            showMessage(result.message, 'success');
+            clearForm();
+          } else {
+            showMessage('저장 실패: ' + (result.error || '알 수 없는 오류'), 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showLoading(false);
+          showMessage('오류: ' + error.message, 'error');
+        })
+        .submitData(formData);
+    }
+    
+    // 폼 초기화
+    function clearForm() {
+      const inputs = document.querySelectorAll('input[type="number"]');
+      inputs.forEach(input => input.value = '');
+      document.getElementById('remark').value = '';
+      hideMessage();
+    }
+    
+    // 메시지 표시
+    function showMessage(text, type) {
+      const msg = document.getElementById('message');
+      msg.textContent = text;
+      msg.className = 'message ' + type + ' active';
+      
+      setTimeout(() => {
+        hideMessage();
+      }, 5000);
+    }
+    
+    function hideMessage() {
+      document.getElementById('message').classList.remove('active');
+    }
+    
+    // 로딩 표시
+    function showLoading(show) {
+      if (show) {
+        document.getElementById('loading').classList.add('active');
+      } else {
+        document.getElementById('loading').classList.remove('active');
+      }
+    }
+  </script>
+</body>
+</html>

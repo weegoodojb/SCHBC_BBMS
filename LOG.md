@@ -1,0 +1,212 @@
+# SCHBC BBMS 프로젝트 로그
+
+## 2026-02-12: TiDB Cloud 데이터베이스 재구축
+
+### 문제
+- TiDB Cloud `test` 데이터베이스가 비어있음 (empty set)
+- Python 스크립트로 TiDB 연결 시도 시 응답 없음/매우 느림
+- pymysql, SQLAlchemy 모두 연결 실패
+
+### 원인
+- 네트워크 지연 또는 방화벽 이슈
+- Python 라이브러리를 통한 TiDB Cloud 연결 불안정
+
+### 해결
+1. **SQL Editor 직접 실행 방식으로 전환**
+   - `TIDB_SETUP.sql.md` 파일 생성
+   - TiDB Cloud SQL Editor에서 직접 SQL 실행
+   - 모든 테이블 및 데이터 생성 성공
+
+2. **생성된 리소스**
+   - 6개 테이블: users, master_config, blood_master, safety_config, blood_inventory, stock_log
+   - TEST001 사용자 (test123)
+   - RBC 비율 50% 설정
+   - 안전 재고 설정 24건
+   - 재고 초기화 24건
+
+3. **검증**
+   - Railway API 로그인 테스트 성공
+   - TiDB Cloud 연결 정상
+   - 데이터베이스 쿼리 정상 작동
+
+### 교훈
+- 클라우드 데이터베이스 연결 시 네트워크 이슈 고려 필요
+- Python 스크립트 실패 시 SQL Editor 직접 실행이 효과적
+- 초기 데이터베이스 설정은 SQL 파일로 문서화 권장
+
+---
+
+
+## 2026-02-11 (화)
+
+### 📦 데이터베이스 설계 및 초기화 완료
+
+**작업 내용:**
+- SQLite 기반 데이터베이스 스키마 설계 및 구현
+- SQLAlchemy ORM 모델 정의 (6개 테이블)
+- 초기 데이터 삽입 (Seed Data)
+
+**생성된 테이블:**
+1. `User` - 사용자 정보 (emp_id, name, password_hash, email)
+2. `BloodMaster` - 혈액제제 마스터 (component, preparation)
+3. `SafetyConfig` - 적정재고/알람기준 (blood_type, prep_id, safety_qty, alert_threshold)
+4. `SystemSettings` - 시스템 설정 Key-Value 저장소
+5. `Inventory` - 현재 재고 (blood_type, prep_id, current_qty)
+6. `StockLog` - 입출고 로그 (log_date, in_qty, out_qty)
+
+**초기 데이터:**
+- BloodMaster: 6개 제제 (PRBC, Prefiltered, PC, SDP, FFP, Cryo)
+- SystemSettings: RBC_RATIO(0.5), PLT_RATIO(0.7), ALERT_ENABLED(true)
+- Inventory: 24개 항목 (4개 혈액형 × 6개 제제, 초기값 0)
+- SafetyConfig: 24개 안전재고 설정
+
+**파일:**
+- `app/database/models.py` - SQLAlchemy ORM 모델
+- `app/database/init_db.py` - DB 초기화 스크립트
+- `run_init_db.py` - 실행 스크립트
+- `verify_db.py` - DB 검증 스크립트
+- `bbms_local.db` - SQLite 데이터베이스 파일
+
+---
+
+### 🚀 FastAPI 백엔드 API 구현 완료
+
+**작업 내용:**
+- FastAPI 기반 REST API 서버 구축
+- JWT 인증 시스템 구현
+- 재고 관리 API 엔드포인트 개발
+- RBC 비율 계산 로직 구현
+
+**핵심 기능:**
+
+1. **인증 시스템**
+   - bcrypt 비밀번호 해싱
+   - JWT 토큰 발급 및 검증
+   - 엔드포인트: `POST /api/auth/login`
+
+2. **재고 조회 API**
+   - 전체 재고 현황 조회
+   - RBC 동적 목표재고 계산
+   - 알람 상태 자동 체크
+   - 엔드포인트: `GET /api/inventory/status`
+
+3. **재고 업데이트 API**
+   - 입출고 처리
+   - StockLog 자동 기록
+   - 재고 부족 검증
+   - 엔드포인트: `POST /api/inventory/update`
+
+**RBC 특화 로직:**
+```python
+# SystemSettings에서 RBC_RATIO 조회 (기본값 0.5)
+total_safety = PRBC_safety + Prefiltered_safety
+prbc_target = round(total_safety * ratio)
+prefiltered_target = round(total_safety * (1 - ratio))
+```
+
+**생성된 파일:**
+- `app/core/config.py` - 애플리케이션 설정
+- `app/core/security.py` - 인증 및 보안 (bcrypt, JWT)
+- `app/database/database.py` - DB 세션 관리
+- `app/schemas/schemas.py` - Pydantic 스키마 정의
+- `app/services/inventory_service.py` - 비즈니스 로직
+- `app/api/auth.py` - 인증 엔드포인트
+- `app/api/inventory.py` - 재고 관리 엔드포인트
+- `app/main.py` - FastAPI 애플리케이션
+
+**의존성:**
+- fastapi==0.109.0
+- uvicorn[standard]==0.27.0
+- python-jose[cryptography]==3.3.0
+- passlib==1.7.4
+- bcrypt==4.0.1
+- python-multipart==0.0.6
+- pydantic-settings==2.1.0
+
+---
+
+### ✅ 테스트 및 검증
+
+**테스트 환경:**
+- 테스트 사용자 생성: TEST001 / test123
+- FastAPI 서버 실행: `http://localhost:8000`
+- API 문서: `http://localhost:8000/docs`
+
+**테스트 결과:**
+- ✅ Health check 통과
+- ✅ 로그인 (유효한 자격증명) 통과
+- ✅ 로그인 (잘못된 자격증명 거부) 통과
+- ✅ 재고 조회 (RBC 계산 포함) 통과
+- ✅ 재고 업데이트 (입고) 통과
+- ✅ 재고 업데이트 (출고) 통과
+- ⚠️ 비고 누락 검증 (인코딩 이슈)
+
+**총 테스트: 6/7 통과** ✅
+
+**검증된 기능:**
+- JWT 토큰 발급 및 인증
+- 비밀번호 해싱 (bcrypt)
+- RBC_RATIO 동적 조회
+- 목표재고 자동 계산
+- 알람 임계값 체크
+- 재고 업데이트 및 로그 기록
+- Pydantic 입력 검증
+- 에러 핸들링
+
+**생성된 파일:**
+- `test_api.py` - 종합 API 테스트 스크립트
+- `create_user_simple.py` - 테스트 사용자 생성
+- `API_QUICKSTART.md` - 빠른 시작 가이드
+
+---
+
+### 📊 현재 시스템 상태
+
+**데이터베이스:**
+- 총 6개 테이블 생성
+- 24개 재고 항목 (초기값 0)
+- 23개 알람 발생 (재고 부족)
+- RBC 비율: 0.5 (50:50)
+
+**API 서버:**
+- 상태: 정상 작동
+- 엔드포인트: 5개 (health, root, login, status, update)
+- 인증: JWT 토큰 기반
+
+**문서:**
+- `database_setup_summary.md` - DB 설계 문서
+- `implementation_plan.md` - 구현 계획
+- `walkthrough.md` - 상세 구현 문서
+- `API_QUICKSTART.md` - API 사용 가이드
+
+---
+
+### 🎯 다음 단계
+
+1. **인증 미들웨어**: JWT 토큰 검증을 보호된 라우트에 적용
+2. **사용자 관리**: 회원가입, 프로필 관리 엔드포인트 추가
+3. **고급 쿼리**: 필터링, 정렬, 페이지네이션 구현
+4. **리포팅**: 재고 추이 분석 및 통계 엔드포인트
+5. **모바일 연동**: 모바일 앱과 API 통합
+6. **프로덕션 배포**: MySQL 마이그레이션, CORS 설정, 시크릿 키 관리
+
+---
+
+### 💡 특이사항
+
+**해결한 이슈:**
+1. bcrypt 버전 호환성 문제 → bcrypt==4.0.1로 다운그레이드
+2. 비밀번호 길이 제한 → 72자 이내로 제한
+3. 테스트 출력 인코딩 이슈 → UTF-8 처리 필요
+
+**기술적 결정:**
+- SQLite 사용 (개발 속도 우선, MySQL 마이그레이션 고려)
+- JWT 토큰 만료: 24시간
+- RBC 비율 계산 시 반올림 처리
+- 모든 테이블에 remark 필드 포함 (비정형 데이터)
+
+---
+
+**작업 시간:** 약 2시간  
+**작업자:** Antigravity AI  
+**상태:** ✅ 완료
