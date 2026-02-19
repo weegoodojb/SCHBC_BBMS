@@ -1,305 +1,487 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>SCHBC BBMS - 혈액 재고 입력</title>
-  
+
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
-      background: #f5f5f5;
+      background: #f0f2f5;
       padding: 8px;
       -webkit-text-size-adjust: 100%;
     }
-    
+
     .container {
-      max-width: 600px;
+      max-width: 700px;
       margin: 0 auto;
       background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       overflow: hidden;
     }
-    
-    /* 헤더 */
+
+    /* ── 헤더 ── */
     .header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 12px 16px;
+      padding: 14px 16px;
       text-align: center;
     }
-    
+
     .header h1 {
       font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 4px;
+      font-weight: 700;
+      margin-bottom: 2px;
     }
-    
+
     .header p {
       font-size: 12px;
       opacity: 0.9;
     }
-    
-    /* 로그인 영역 */
+
+    /* ── 로그인 ── */
     .login-section {
       padding: 12px 16px;
       background: #f8f9fa;
       border-bottom: 1px solid #e0e0e0;
       display: none;
     }
-    
+
     .login-section.active {
       display: block;
     }
-    
+
     .login-form {
       display: flex;
       gap: 8px;
       align-items: center;
     }
-    
+
     .login-form input {
       flex: 1;
-      padding: 8px 12px;
+      padding: 9px 12px;
       border: 1px solid #ddd;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 14px;
     }
-    
+
     .login-form button {
-      padding: 8px 16px;
+      padding: 9px 18px;
       background: #667eea;
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
     }
-    
+
     .login-form button:active {
       background: #5568d3;
     }
-    
+
     .user-info {
       display: none;
-      padding: 8px 12px;
+      padding: 8px 14px;
       background: #e8f5e9;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 13px;
     }
-    
+
     .user-info.active {
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    
-    /* 그리드 테이블 */
+
+    .logout-btn {
+      background: none;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #555;
+    }
+
+    /* ── 그리드 ── */
     .grid-section {
-      padding: 12px;
+      padding: 10px 8px;
       overflow-x: auto;
     }
-    
+
     .grid-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
-    }
-    
-    .grid-table th {
-      background: #f5f5f5;
-      padding: 6px 4px;
-      text-align: center;
-      font-weight: 600;
-      border: 1px solid #ddd;
       font-size: 12px;
-      white-space: nowrap;
     }
-    
-    .grid-table td {
-      padding: 4px;
-      border: 1px solid #ddd;
+
+    .grid-table th {
+      background: #f0f2ff;
+      padding: 7px 4px;
       text-align: center;
+      font-weight: 700;
+      border: 1px solid #d0d0e8;
+      font-size: 11px;
+      white-space: nowrap;
+      color: #444;
     }
-    
-    .grid-table td.blood-type {
-      background: #f0f0f0;
-      font-weight: 600;
+
+    .grid-table td {
+      padding: 3px 3px;
+      border: 1px solid #e0e0e0;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .grid-table td.blood-type-cell {
+      background: #f5f5f5;
+      font-weight: 700;
       font-size: 14px;
-      width: 40px;
+      width: 32px;
     }
-    
-    .grid-table input[type="number"] {
-      width: 100%;
-      padding: 6px 4px;
-      border: 1px solid #ddd;
+
+    .grid-table td.blood-type-cell.O-type {
+      background: #fff0e8;
+      color: #c43c00;
+    }
+
+    /* ── 입력 + 버튼 ── */
+    .qty-cell {
+      min-width: 72px;
+      padding: 3px !important;
+    }
+
+    .qty-wrap {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .qty-btn {
+      width: 22px;
+      height: 28px;
+      flex-shrink: 0;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      background: #f5f5f5;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      color: #444;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .qty-btn:active {
+      background: #dde;
+    }
+
+    .qty-input {
+      flex: 1;
+      min-width: 0;
+      padding: 5px 2px;
+      border: 1px solid #ccc;
       border-radius: 4px;
       text-align: center;
       font-size: 14px;
+      font-weight: 600;
       -webkit-appearance: none;
       -moz-appearance: textfield;
     }
-    
-    .grid-table input[type="number"]:focus {
+
+    .qty-input:focus {
       outline: none;
       border-color: #667eea;
       background: #f0f4ff;
     }
-    
-    /* Chrome, Safari, Edge */
-    .grid-table input[type="number"]::-webkit-inner-spin-button,
-    .grid-table input[type="number"]::-webkit-outer-spin-button {
+
+    /* Chrome 스핀 버튼 제거 */
+    .qty-input::-webkit-inner-spin-button,
+    .qty-input::-webkit-outer-spin-button {
       -webkit-appearance: none;
       margin: 0;
     }
-    
-    /* 하단 영역 */
+
+    /* ── 신청량 행 ── */
+    .request-row td {
+      background: #fffde7;
+      font-size: 11px;
+      padding: 3px 4px;
+      color: #6b4500;
+      font-weight: 600;
+    }
+
+    .request-row td.blood-type-cell {
+      background: #fff8e1;
+      font-size: 11px;
+      color: #6b4500;
+    }
+
+    .req-val {
+      font-size: 13px;
+      color: #c84000;
+      font-weight: 700;
+    }
+
+    .req-val.ok {
+      color: #2e7d32;
+    }
+
+    .req-val.zero {
+      color: #aaa;
+    }
+
+    /* ── 하단 ── */
     .bottom-section {
       padding: 12px 16px;
       background: #f8f9fa;
       border-top: 1px solid #e0e0e0;
     }
-    
+
     .remark-group {
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
-    
+
     .remark-group label {
       display: block;
       margin-bottom: 4px;
-      font-weight: 500;
+      font-weight: 600;
       font-size: 13px;
     }
-    
+
     .remark-group textarea {
       width: 100%;
       padding: 8px 12px;
       border: 1px solid #ddd;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 14px;
       resize: vertical;
-      min-height: 60px;
+      min-height: 56px;
       font-family: inherit;
     }
-    
+
     .button-group {
       display: flex;
       gap: 8px;
     }
-    
+
     .btn {
       flex: 1;
-      padding: 12px;
+      padding: 13px;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 15px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: transform 0.1s;
     }
-    
+
     .btn-primary {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
     }
-    
+
     .btn-primary:active {
-      transform: scale(0.98);
+      transform: scale(0.97);
     }
-    
+
     .btn-secondary {
       background: #e0e0e0;
       color: #333;
     }
-    
+
     .btn:disabled {
-      opacity: 0.5;
+      opacity: 0.45;
       cursor: not-allowed;
     }
-    
-    /* 메시지 */
+
+    /* ── 메시지 / 로딩 ── */
     .message {
-      padding: 12px;
-      margin: 12px 16px;
-      border-radius: 4px;
+      padding: 10px 14px;
+      margin: 8px 16px;
+      border-radius: 6px;
       font-size: 13px;
       display: none;
     }
-    
+
     .message.success {
       background: #d4edda;
       color: #155724;
       border: 1px solid #c3e6cb;
     }
-    
+
     .message.error {
       background: #f8d7da;
       color: #721c24;
       border: 1px solid #f5c6cb;
     }
-    
+
     .message.active {
       display: block;
     }
-    
-    /* 로딩 */
+
     .loading {
       display: none;
       text-align: center;
-      padding: 20px;
+      padding: 16px;
       color: #667eea;
     }
-    
+
     .loading.active {
       display: block;
     }
-    
+
     .spinner {
       border: 3px solid #f3f3f3;
       border-top: 3px solid #667eea;
       border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 12px;
+      width: 36px;
+      height: 36px;
+      animation: spin 0.9s linear infinite;
+      margin: 0 auto 8px;
     }
-    
+
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
-    
-    /* 반응형 */
+
+    /* ── 관리자 패널 (PC 전용) ── */
+    .admin-panel {
+      display: none;
+      /* 기본 숨김 */
+      padding: 14px 16px;
+      border-top: 2px solid #667eea;
+      background: #f5f3ff;
+    }
+
+    .admin-panel h3 {
+      font-size: 14px;
+      color: #5541a8;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .admin-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    .admin-field input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #c9bef0;
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+    }
+
+    .admin-field input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .admin-reason label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    .admin-reason textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #c9bef0;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      min-height: 48px;
+      resize: vertical;
+      background: white;
+    }
+
+    .admin-apply-btn {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background: #5541a8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .admin-apply-btn:active {
+      background: #3d2f8a;
+    }
+
+    .admin-hint {
+      font-size: 11px;
+      color: #888;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    /* PC에서만 관리자 패널 표시 */
+    @media (min-width: 768px) {
+      .admin-panel {
+        display: block;
+      }
+    }
+
+    /* ── 반응형 ── */
     @media (max-width: 480px) {
       body {
         padding: 4px;
       }
-      
-      .grid-table {
-        font-size: 12px;
-      }
-      
-      .grid-table th {
-        padding: 4px 2px;
+
+      .grid-table th,
+      .grid-table td {
         font-size: 11px;
       }
-      
-      .grid-table input[type="number"] {
-        padding: 4px 2px;
+
+      .qty-btn {
+        width: 20px;
+        height: 26px;
+        font-size: 14px;
+      }
+
+      .qty-input {
         font-size: 13px;
       }
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <!-- 헤더 -->
@@ -307,33 +489,32 @@
       <h1>🩸 SCHBC BBMS</h1>
       <p>혈액 재고 관리 시스템</p>
     </div>
-    
-    <!-- 로그인 영역 -->
+
+    <!-- 로그인 -->
     <div class="login-section active" id="loginSection">
       <form class="login-form" id="loginForm">
-        <input type="text" id="empId" placeholder="사번" required>
-        <input type="password" id="password" placeholder="비밀번호" required>
+        <input type="text" id="empId" placeholder="사번" autocomplete="username" required>
+        <input type="password" id="password" placeholder="비밀번호" autocomplete="current-password" required>
         <button type="submit">로그인</button>
       </form>
     </div>
-    
+
     <!-- 사용자 정보 -->
     <div class="user-info" id="userInfo">
-      <span id="userName"></span> 님 로그인됨
+      <span id="userName"></span>
+      <button class="logout-btn" onclick="logout()">로그아웃</button>
     </div>
-    
-    <!-- 메시지 -->
+
+    <!-- 메시지 / 로딩 -->
     <div class="message" id="message"></div>
-    
-    <!-- 로딩 -->
     <div class="loading" id="loading">
       <div class="spinner"></div>
       <div>처리 중...</div>
     </div>
-    
+
     <!-- 그리드 테이블 -->
     <div class="grid-section">
-      <table class="grid-table">
+      <table class="grid-table" id="inventoryGrid">
         <thead>
           <tr>
             <th>혈액형</th>
@@ -345,180 +526,241 @@
             <th>Cryo</th>
           </tr>
         </thead>
-        <tbody>
-          <tr>
-            <td class="blood-type">A</td>
-            <td><input type="number" id="A_PRBC" placeholder="0"></td>
-            <td><input type="number" id="A_Pre-R" placeholder="0"></td>
-            <td><input type="number" id="A_PC" placeholder="0"></td>
-            <td><input type="number" id="A_SDP" placeholder="0"></td>
-            <td><input type="number" id="A_FFP" placeholder="0"></td>
-            <td><input type="number" id="A_Cryo" placeholder="0"></td>
-          </tr>
-          <tr>
-            <td class="blood-type">B</td>
-            <td><input type="number" id="B_PRBC" placeholder="0"></td>
-            <td><input type="number" id="B_Pre-R" placeholder="0"></td>
-            <td><input type="number" id="B_PC" placeholder="0"></td>
-            <td><input type="number" id="B_SDP" placeholder="0"></td>
-            <td><input type="number" id="B_FFP" placeholder="0"></td>
-            <td><input type="number" id="B_Cryo" placeholder="0"></td>
-          </tr>
-          <tr>
-            <td class="blood-type">O</td>
-            <td><input type="number" id="O_PRBC" placeholder="0"></td>
-            <td><input type="number" id="O_Pre-R" placeholder="0"></td>
-            <td><input type="number" id="O_PC" placeholder="0"></td>
-            <td><input type="number" id="O_SDP" placeholder="0"></td>
-            <td><input type="number" id="O_FFP" placeholder="0"></td>
-            <td><input type="number" id="O_Cryo" placeholder="0"></td>
-          </tr>
-          <tr>
-            <td class="blood-type">AB</td>
-            <td><input type="number" id="AB_PRBC" placeholder="0"></td>
-            <td><input type="number" id="AB_Pre-R" placeholder="0"></td>
-            <td><input type="number" id="AB_PC" placeholder="0"></td>
-            <td><input type="number" id="AB_SDP" placeholder="0"></td>
-            <td><input type="number" id="AB_FFP" placeholder="0"></td>
-            <td><input type="number" id="AB_Cryo" placeholder="0"></td>
-          </tr>
+        <tbody id="gridBody">
+          <!-- JS로 생성 -->
         </tbody>
       </table>
     </div>
-    
-    <!-- 하단 영역 -->
+
+    <!-- 하단 -->
     <div class="bottom-section">
       <div class="remark-group">
         <label for="remark">비고 (필수)</label>
-        <textarea id="remark" placeholder="입출고 사유를 입력하세요"></textarea>
+        <textarea id="remark" placeholder="입출고 사유, 특이사항 등을 입력하세요"></textarea>
       </div>
-      
       <div class="button-group">
         <button class="btn btn-secondary" onclick="clearForm()">초기화</button>
         <button class="btn btn-primary" onclick="submitForm()">재고 저장</button>
       </div>
     </div>
+
+    <!-- 관리자 패널 (PC 전용, ≥768px) -->
+    <div class="admin-panel" id="adminPanel">
+      <h3>⚙️ RBC 재고비 관리 (관리자 / PC 전용)</h3>
+      <div class="admin-grid">
+        <div class="admin-field">
+          <label for="adminDCR">1일 재고비 (Daily Consumption Rate)</label>
+          <input type="number" id="adminDCR" step="0.1" min="0.1" max="30" value="3.0" inputmode="decimal">
+        </div>
+        <div class="admin-field">
+          <label for="adminSF">적정재고비 (Safety Factor)</label>
+          <input type="number" id="adminSF" step="0.1" min="0.5" max="10" value="2.0" inputmode="decimal">
+        </div>
+      </div>
+      <div class="admin-reason">
+        <label for="adminReason">변경 사유 (5자 이상 필수)</label>
+        <textarea id="adminReason" placeholder="예: 2026년 2분기 사용량 분석 반영"></textarea>
+      </div>
+      <button class="admin-apply-btn" onclick="applyRbcFactors()">📊 전체 공통 적용</button>
+      <p class="admin-hint">
+        💡 적정재고 계산식: ceil(1일재고비 × 적정재고비)&nbsp;&nbsp;|&nbsp;&nbsp;O형 RBC: +4 추가
+      </p>
+    </div>
   </div>
-  
+
   <script>
+    const BLOOD_TYPES = ['A', 'B', 'O', 'AB'];
+    const PREPS = ['PRBC', 'Pre-R', 'PC', 'SDP', 'FFP', 'Cryo'];
     let currentUser = null;
-    
-    // 로그인 처리
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      const empId = document.getElementById('empId').value;
-      const password = document.getElementById('password').value;
-      
-      showLoading(true);
-      hideMessage();
-      
+    // 적정재고 캐시 (서버에서 받아온 값)
+    let safetyTargets = {};
+
+    // ── 그리드 생성 ──────────────────────────────────────────────────────────
+    function buildGrid() {
+      const tbody = document.getElementById('gridBody');
+      tbody.innerHTML = '';
+
+      BLOOD_TYPES.forEach(bt => {
+        // 입력 행
+        const inputRow = document.createElement('tr');
+        const isO = bt === 'O';
+        inputRow.innerHTML = `<td class="blood-type-cell${isO ? ' O-type' : ''}">${bt}</td>`;
+
+        PREPS.forEach(prep => {
+          const id = `${bt}_${prep}`;
+          inputRow.innerHTML += `
+            <td class="qty-cell">
+              <div class="qty-wrap">
+                <button class="qty-btn" type="button" onclick="changeQty('${id}',-1)">−</button>
+                <input class="qty-input"
+                       type="text"
+                       inputmode="decimal"
+                       id="${id}"
+                       placeholder="0"
+                       oninput="onQtyInput('${bt}','${prep}',this.value)">
+                <button class="qty-btn" type="button" onclick="changeQty('${id}',+1)">+</button>
+              </div>
+            </td>`;
+        });
+        tbody.appendChild(inputRow);
+
+        // 신청량 행
+        const reqRow = document.createElement('tr');
+        reqRow.className = 'request-row';
+        reqRow.innerHTML = `<td class="blood-type-cell" style="font-size:10px;color:#aaa;">신청량</td>`;
+        PREPS.forEach(prep => {
+          reqRow.innerHTML += `<td><span class="req-val zero" id="req_${bt}_${prep}">-</span></td>`;
+        });
+        tbody.appendChild(reqRow);
+      });
+    }
+
+    // ── +/- 버튼 ─────────────────────────────────────────────────────────────
+    function changeQty(id, delta) {
+      const input = document.getElementById(id);
+      const current = parseInt(input.value) || 0;
+      const next = Math.max(0, current + delta);
+      input.value = next;
+      const [bt, prep] = id.split('_');
+      onQtyInput(bt, prep, next);
+    }
+
+    // ── 신청량 실시간 계산 ───────────────────────────────────────────────────
+    function onQtyInput(bt, prep, value) {
+      const current = parseInt(value) || 0;
+      const key = `${bt}_${prep}`;
+      const target = safetyTargets[key] || 0;
+      const req = Math.max(0, target - current);
+      const el = document.getElementById(`req_${bt}_${prep}`);
+      if (!el) return;
+      el.textContent = target > 0 ? req : '-';
+      el.className = 'req-val ' + (target === 0 ? 'zero' : req === 0 ? 'ok' : '');
+    }
+
+    // ── 적정재고 불러오기 ────────────────────────────────────────────────────
+    function loadSafetyTargets() {
       google.script.run
-        .withSuccessHandler(function(result) {
+        .withSuccessHandler(function (result) {
+          if (result && result.success) {
+            safetyTargets = result.targets || {};
+            // 이미 입력된 값이 있으면 신청량 재계산
+            BLOOD_TYPES.forEach(bt => {
+              PREPS.forEach(prep => {
+                const el = document.getElementById(`${bt}_${prep}`);
+                if (el && el.value) onQtyInput(bt, prep, el.value);
+              });
+            });
+          }
+        })
+        .withFailureHandler(function () { }) // 실패해도 무시
+        .getSafetyTargets();
+    }
+
+    // ── 로그인 ──────────────────────────────────────────────────────────────
+    document.getElementById('loginForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const empId = document.getElementById('empId').value.trim();
+      const passw = document.getElementById('password').value;
+      showLoading(true); hideMessage();
+
+      google.script.run
+        .withSuccessHandler(function (result) {
           showLoading(false);
           if (result.success) {
             currentUser = result.data;
             document.getElementById('loginSection').classList.remove('active');
-            document.getElementById('userInfo').classList.add('active');
+            const ui = document.getElementById('userInfo'); ui.classList.add('active');
             document.getElementById('userName').textContent = result.data.name;
             showMessage('로그인 성공!', 'success');
+            loadSafetyTargets();
           } else {
             showMessage('로그인 실패: ' + result.error, 'error');
           }
         })
-        .withFailureHandler(function(error) {
-          showLoading(false);
-          showMessage('오류: ' + error.message, 'error');
-        })
-        .loginUser({emp_id: empId, password: password});
+        .withFailureHandler(function (e) { showLoading(false); showMessage('오류: ' + e.message, 'error'); })
+        .loginUser({ emp_id: empId, password: passw });
     });
-    
-    // 폼 제출
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('loginSection').classList.add('active');
+      document.getElementById('userInfo').classList.remove('active');
+      clearForm();
+    }
+
+    // ── 폼 제출 ─────────────────────────────────────────────────────────────
     function submitForm() {
-      if (!currentUser) {
-        showMessage('먼저 로그인하세요', 'error');
-        return;
-      }
-      
+      if (!currentUser) { showMessage('먼저 로그인하세요', 'error'); return; }
       const remark = document.getElementById('remark').value.trim();
-      if (!remark) {
-        showMessage('비고를 입력하세요', 'error');
-        return;
-      }
-      
-      // 그리드 데이터 수집
-      const formData = {remark: remark};
-      const bloodTypes = ['A', 'B', 'O', 'AB'];
-      const preps = ['PRBC', 'Pre-R', 'PC', 'SDP', 'FFP', 'Cryo'];
-      
+      if (!remark) { showMessage('비고를 입력하세요', 'error'); return; }
+
+      const formData = { remark };
       let hasData = false;
-      bloodTypes.forEach(bt => {
-        preps.forEach(prep => {
+      BLOOD_TYPES.forEach(bt => {
+        PREPS.forEach(prep => {
           const id = `${bt}_${prep}`;
-          const value = document.getElementById(id).value;
-          if (value && value !== '0') {
-            formData[id] = value;
-            hasData = true;
-          }
+          const v = document.getElementById(id).value;
+          if (v !== '' && v !== '0') { formData[id] = v; hasData = true; }
         });
       });
-      
-      if (!hasData) {
-        showMessage('입력된 재고 데이터가 없습니다', 'error');
-        return;
-      }
-      
-      showLoading(true);
-      hideMessage();
-      
+      if (!hasData) { showMessage('입력된 데이터가 없습니다', 'error'); return; }
+
+      showLoading(true); hideMessage();
       google.script.run
-        .withSuccessHandler(function(result) {
+        .withSuccessHandler(function (result) {
           showLoading(false);
-          if (result.success) {
-            showMessage(result.message, 'success');
-            clearForm();
-          } else {
-            showMessage('저장 실패: ' + (result.error || '알 수 없는 오류'), 'error');
-          }
+          if (result.success) { showMessage(result.message, 'success'); clearForm(); }
+          else { showMessage('저장 실패: ' + (result.error || '알 수 없는 오류'), 'error'); }
         })
-        .withFailureHandler(function(error) {
-          showLoading(false);
-          showMessage('오류: ' + error.message, 'error');
-        })
+        .withFailureHandler(function (e) { showLoading(false); showMessage('오류: ' + e.message, 'error'); })
         .submitData(formData);
     }
-    
-    // 폼 초기화
+
+    // ── 관리자: RBC 재고비 일괄 적용 ────────────────────────────────────────
+    function applyRbcFactors() {
+      const dcr = parseFloat(document.getElementById('adminDCR').value);
+      const sf = parseFloat(document.getElementById('adminSF').value);
+      const reason = document.getElementById('adminReason').value.trim();
+
+      if (isNaN(dcr) || dcr <= 0) { showMessage('1일 재고비를 올바르게 입력하세요', 'error'); return; }
+      if (isNaN(sf) || sf <= 0) { showMessage('적정재고비를 올바르게 입력하세요', 'error'); return; }
+      if (reason.length < 5) { showMessage('변경 사유는 5자 이상 입력하세요', 'error'); return; }
+
+      showLoading(true); hideMessage();
+      google.script.run
+        .withSuccessHandler(function (result) {
+          showLoading(false);
+          if (result && result.success) {
+            showMessage(`재고비 적용 완료: DCR=${dcr}, SF=${sf}`, 'success');
+            loadSafetyTargets();
+          } else {
+            showMessage('업데이트 실패: ' + (result && result.error || '오류'), 'error');
+          }
+        })
+        .withFailureHandler(function (e) { showLoading(false); showMessage('오류: ' + e.message, 'error'); })
+        .updateRbcFactors({ daily_consumption_rate: dcr, safety_factor: sf, change_reason: reason });
+    }
+
+    // ── 유틸 ────────────────────────────────────────────────────────────────
     function clearForm() {
-      const inputs = document.querySelectorAll('input[type="number"]');
-      inputs.forEach(input => input.value = '');
+      document.querySelectorAll('.qty-input').forEach(i => i.value = '');
       document.getElementById('remark').value = '';
+      document.querySelectorAll('.req-val').forEach(el => { el.textContent = '-'; el.className = 'req-val zero'; });
       hideMessage();
     }
-    
-    // 메시지 표시
     function showMessage(text, type) {
-      const msg = document.getElementById('message');
-      msg.textContent = text;
-      msg.className = 'message ' + type + ' active';
-      
-      setTimeout(() => {
-        hideMessage();
-      }, 5000);
+      const m = document.getElementById('message');
+      m.textContent = text; m.className = 'message ' + type + ' active';
+      setTimeout(hideMessage, 5000);
     }
-    
-    function hideMessage() {
-      document.getElementById('message').classList.remove('active');
-    }
-    
-    // 로딩 표시
+    function hideMessage() { document.getElementById('message').classList.remove('active'); }
     function showLoading(show) {
-      if (show) {
-        document.getElementById('loading').classList.add('active');
-      } else {
-        document.getElementById('loading').classList.remove('active');
-      }
+      document.getElementById('loading').classList.toggle('active', show);
     }
+
+    // ── 초기화 ──────────────────────────────────────────────────────────────
+    buildGrid();
   </script>
 </body>
+
 </html>

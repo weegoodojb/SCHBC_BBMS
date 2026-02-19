@@ -275,6 +275,73 @@ function updateBackendUrl(newUrl) {
 }
 
 /**
+ * 적정재고 목표값 조회 - UI 신청량 실시간 계산용
+ * @return {Object} {success, targets: {'A_PRBC': 12, ...}}
+ */
+function getSafetyTargets() {
+  try {
+    const url = `${BACKEND_URL}/api/inventory/status`;
+    const options = { method: 'get', muteHttpExceptions: true };
+    const response = UrlFetchApp.fetch(url, options);
+
+    if (response.getResponseCode() !== 200) {
+      return { success: false, targets: {} };
+    }
+
+    const result = JSON.parse(response.getContentText());
+    const targets = {};
+
+    (result.items || []).forEach(item => {
+      if (item.target_qty !== null && item.target_qty !== undefined) {
+        const prep = item.preparation === 'Prefiltered' ? 'Pre-R' : item.preparation;
+        targets[`${item.blood_type}_${prep}`] = item.target_qty;
+      }
+    });
+
+    return { success: true, targets };
+  } catch (error) {
+    Logger.log('getSafetyTargets error: ' + error);
+    return { success: false, targets: {}, error: error.message };
+  }
+}
+
+/**
+ * RBC 재고비 공통 일괄 업데이트 (관리자 전용, PC 화면에서 호출)
+ * @param {Object} data - {daily_consumption_rate, safety_factor, change_reason}
+ * @return {Object} 결과
+ */
+function updateRbcFactors(data) {
+  try {
+    const url = `${BACKEND_URL}/api/config/rbc-factors`;
+    const payload = {
+      daily_consumption_rate: data.daily_consumption_rate,
+      safety_factor: data.safety_factor,
+      change_reason: data.change_reason
+    };
+    const options = {
+      method: 'put',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const result = JSON.parse(response.getContentText());
+
+    if (response.getResponseCode() === 200) {
+      return { success: true, message: result.message || '업데이트 완료' };
+    } else {
+      return { success: false, error: result.detail || '업데이트 실패' };
+    }
+  } catch (error) {
+    Logger.log('updateRbcFactors error: ' + error);
+    return { success: false, error: '서버 연결 실패: ' + error.message };
+  }
+}
+
+
+
+/**
  * 서버 연결 테스트
  */
 function testConnection() {

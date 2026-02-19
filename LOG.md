@@ -36,6 +36,69 @@
 
 ---
 
+## 2026-02-13: 인프라 전면 개편 (TiDB → Supabase 마이그레이션)
+
+### 배경
+- TiDB Cloud 연결 지연 및 불안정성 지속
+- GitHub 인증 오류로 코드 동기화 불가
+- 과감한 스택 교체 결정
+
+### 작업 내용
+
+1. **GitHub 재초기화**
+   - `.git` 폴더 삭제 및 `git init` 재실행
+   - `.gitignore` 생성
+   - 첫 커밋 생성 완료 (commit: e0a1020)
+
+2. **Database 피벗 (TiDB → Supabase PostgreSQL)**
+   - ❌ 제거: `pymysql`, `cryptography`
+   - ✅ 추가: `psycopg2-binary`, `supabase`
+   - `requirements.txt` 업데이트
+   - `app/core/config.py`: DATABASE_URL을 PostgreSQL 형식으로 변경
+   - `app/database/database.py`: SQLite 설정 제거, PostgreSQL pool_pre_ping 추가
+   - `.env.example`: Supabase 자격 증명 추가
+
+3. **Supabase 설정**
+   - Database URL: `postgresql://postgres.gzqtyjwoasbbgelylkix:...@aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres`
+   - Project URL: `https://gzqtyjwoasbbgelylkix.supabase.co`
+   - Anon Key: `sb_publishable_XypkjPMQoR9JR8Vv_bumEw_NC_MrCTn`
+
+4. **생성된 파일**
+   - `SUPABASE_SETUP.md`: 테이블 생성 SQL 스크립트
+   - `RAILWAY_ENV_SUPABASE.md`: Railway 환경 변수 가이드
+   - `setup_supabase.py`: SQLAlchemy 기반 설정 스크립트
+   - `setup_supabase_direct.py`: psycopg2 직접 사용 스크립트
+
+### 문제 및 미완료 사항
+
+**Supabase 연결 실패**
+- Python에서 Supabase PostgreSQL 연결 시도 시 모두 실패
+- SQLAlchemy: "error processing the request"
+- psycopg2: 동일한 오류
+- 원인: 네트워크/방화벽 또는 Supabase Pooler 설정 문제
+
+**다음 단계 (보류)**
+1. GitHub 원격 저장소 연결 및 푸시
+2. Supabase SQL Editor로 테이블 수동 생성 (TiDB와 동일한 방법)
+3. Railway 환경 변수 업데이트
+4. 배포 및 테스트
+
+### 현재 상태
+
+- ✅ 코드 마이그레이션 완료 (TiDB → Supabase)
+- ✅ Git 재초기화 완료
+- ✅ 첫 커밋 생성 완료
+- ⏸️ GitHub 푸시 대기 (원격 저장소 URL 필요)
+- ⏸️ Supabase 테이블 생성 대기 (SQL Editor 사용 권장)
+
+### 교훈
+- 클라우드 데이터베이스 마이그레이션 시 로컬 연결 테스트 필수
+- Python 스크립트 연결 실패 시 SQL Editor가 가장 안정적
+- 인프라 변경은 단계적으로 진행하되, 롤백 계획 필요
+
+---
+
+
 
 ## 2026-02-11 (화)
 
