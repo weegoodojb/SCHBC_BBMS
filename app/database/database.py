@@ -1,5 +1,6 @@
 """
 Database session management - Supabase PostgreSQL optimized
+psycopg2-binary를 명시적 드라이버로 강제 지정
 """
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
@@ -10,14 +11,32 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+
+def _get_db_url() -> str:
+    """
+    DATABASE_URL에서 드라이버를 postgresql+psycopg2://로 강제 지정.
+    Railway 환경에서 postgresql:// 또는 postgres:// 모두 처리.
+    """
+    url = settings.DATABASE_URL
+    # postgres:// → postgresql:// (Heroku/Railway 호환)
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    # postgresql:// → postgresql+psycopg2:// (드라이버 명시)
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    return url
+
+
+DB_URL = _get_db_url()
+
 # Supabase Pooler 최적화 연결 설정
 engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,       # 연결 전 SELECT 1 자동 확인
+    DB_URL,
+    pool_pre_ping=True,        # 연결 전 SELECT 1 자동 확인
     pool_size=5,
     max_overflow=10,
     pool_timeout=30,
-    pool_recycle=1800,        # 30분마다 연결 재생성
+    pool_recycle=1800,         # 30분마다 연결 재생성
     connect_args={
         "sslmode": "require",
         "connect_timeout": 10,
