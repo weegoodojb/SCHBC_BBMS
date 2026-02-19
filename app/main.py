@@ -1,9 +1,12 @@
 """
-SCHBC BBMS FastAPI Application
+SCHBC BBMS FastAPI Application - Standalone (Railway 직접 서빙)
 """
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 import logging
 
 from app.api import auth, inventory, config
@@ -12,19 +15,18 @@ from app.database.database import test_connection
 
 logger = logging.getLogger(__name__)
 
+templates = Jinja2Templates(directory="templates")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """앱 시작/종료 시 실행"""
-    # Startup: DB 연결 테스트
     logger.info("🚀 SCHBC BBMS 시작 중...")
     ok = test_connection()
     if ok:
-        logger.info("✅ Supabase PostgreSQL 연결 성공 (SELECT 1 확인)")
+        logger.info("✅ Supabase PostgreSQL 연결 성공")
     else:
-        logger.warning("⚠️ DB 연결 실패 - 환경변수 DATABASE_URL 확인 필요")
+        logger.warning("⚠️ DB 연결 실패 - DATABASE_URL 확인 필요")
     yield
-    # Shutdown
     logger.info("👋 SCHBC BBMS 종료")
 
 
@@ -43,20 +45,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Static files (CSS, JS, images 등 향후 사용)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# API 라우터
 app.include_router(auth.router)
 app.include_router(inventory.router)
 app.include_router(config.router, prefix="/api/config", tags=["Configuration"])
 
 
-@app.get("/")
-def root():
-    return {
-        "message": "SCHBC BBMS API is Running",
-        "version": settings.APP_VERSION,
-        "status": "running",
-        "docs": "/docs",
-        "health": "/health"
-    }
+@app.get("/", response_class=HTMLResponse)
+def root(request: Request):
+    """메인 화면 - index.html 서빙"""
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/health")

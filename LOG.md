@@ -1,5 +1,27 @@
 # SCHBC BBMS 프로젝트 로그
 
+## 2026-02-19: GitHub 푸시 완료
+
+- Remote 설정: `https://github.com/weegoodojb/SCHBC_BBMS.git`
+- Push 결과: ✅ 성공 (`main` 브랜치, `--force`)
+- 최신 커밋: `8a0e3f2` (CSS fix) / `6059706` (RBC 재고비 관리 전체 구현)
+- 95개 오브젝트 업로드 완료
+
+---
+
+## 2026-02-19: RBC 재고비 관리 로직 구현
+
+- models.py: MasterConfig 혈액형/제제별 행 + daily_consumption_rate/safety_factor + InventoryRatioHistory 신설
+- database.py: Supabase Pooler 최적화 (sslmode=require, pool 파라미터, test_connection())
+- inventory_service.py: ceil(DCR×SF) + O형 +4, request_qty 필드 추가
+- config.py: GET/PUT /api/config/rbc-factors, GET /api/config/rbc-history
+- main.py: lifespan startup DB 테스트, /health DB 상태 반환
+- index.html: inputmode=decimal, +/- 버튼, 신청량 행, PC 관리자 패널
+- code.gs: getSafetyTargets(), updateRbcFactors() 추가
+- ⚠️ Supabase 테이블 생성: 로컬 방화벽 → SQL Editor로 생성 필요
+
+---
+
 ## 2026-02-12: TiDB Cloud 데이터베이스 재구축
 
 ### 문제
