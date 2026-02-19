@@ -1,6 +1,18 @@
 # SCHBC BBMS 프로젝트 로그
 
-## 2026-02-19: GitHub 푸시 완료
+## 2026-02-19: Railway 배포 안정화 (세션 종료)
+
+- `templates/index.html` 신설: GAS 제거, fetch() API 기반 독립 프론트엔드
+- `main.py`: Jinja2Templates + StaticFiles, 루트(/) → HTML 서빙
+- `database.py`: `_get_db_url()` 추가 → `postgresql+psycopg2://` 드라이버 강제 지정
+- `requirements.txt`: `supabase` 패키지 제거 (psycopg2 충돌 원인), `jinja2` 추가
+- `nixpacks.toml` 수정: `libpq`, `gcc` 추가 (psycopg2-binary 네이티브 의존성)
+- 최종 커밋: `6de6c6b` | GitHub: `weegoodojb/SCHBC_BBMS`
+- ⚠️ 잔여 작업: Supabase SQL Editor에서 테이블 생성 필요
+
+---
+
+
 
 - Remote 설정: `https://github.com/weegoodojb/SCHBC_BBMS.git`
 - Push 결과: ✅ 성공 (`main` 브랜치, `--force`)
