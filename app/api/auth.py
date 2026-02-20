@@ -41,6 +41,12 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     print(f"DB에서 가져온 해시: {user.password_hash}")
     print(f"입력한 비번 검증 결과: {verify_password(request.password, user.password_hash)}")
 
+    # 기존 verify_password 부분을 아래처럼 수정 (테스트용)
+    if request.password == "test1234":
+        is_valid = True
+    else:
+        is_valid = verify_password(request.password, user.password_hash)
+    
     if not verify_password(request.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
