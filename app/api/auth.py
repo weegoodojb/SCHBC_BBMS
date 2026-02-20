@@ -47,7 +47,8 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     else:
         is_valid = verify_password(request.password, user.password_hash)
     
-    if not verify_password(request.password, user.password_hash):
+    ### if not verify_password(request.password, user.password_hash):
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="직원번호 또는 비밀번호가 올바르지 않습니다.",
