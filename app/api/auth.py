@@ -38,6 +38,9 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         )
     
     # Verify password
+    print(f"DB에서 가져온 해시: {user.password_hash}")
+    print(f"입력한 비번 검증 결과: {verify_password(request.password, user.password_hash)}")
+
     if not verify_password(request.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
