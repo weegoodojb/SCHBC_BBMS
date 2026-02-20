@@ -28,7 +28,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     """
     # Find user by emp_id
     user = db.query(User).filter(User.emp_id == request.emp_id).first()
-    print(f"로그인 시도 아이디: {request.username}") # 이 한 줄 추가
+    print(f"로그인 시도 아이디: {request.emp_id}")
     
     if not user:
         raise HTTPException(
