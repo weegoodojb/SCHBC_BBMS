@@ -856,8 +856,10 @@
                     document.getElementById('loginSection').classList.remove('active');
                     document.getElementById('userInfo').classList.add('active');
                     document.getElementById('userName').textContent = res.data.name + ' 님';
-                    showMsg('로그인 성공!', 'success');
-                    loadSafetyTargets();
+                    showMsg('로그인 성공! 최근 재고를 불러오는 중...', 'success');
+                    // 로그인 후 최근 재고 + 신청량 동시 로드
+                    await Promise.all([loadInventory(), loadSafetyTargets()]);
+                    showMsg('로그인 성공 — 최근 재고가 반영되었습니다', 'success');
                 } else {
                     showMsg('로그인 실패: ' + (res.data.detail || '인증 오류'), 'error');
                 }
@@ -872,6 +874,24 @@
             document.getElementById('loginSection').classList.add('active');
             document.getElementById('userInfo').classList.remove('active');
             hideMsg();
+        }
+
+        // ── 최근 재고 불러오기 (로그인 직후 input에 value 세팅) ────────────────
+        async function loadInventory() {
+            try {
+                const res = await api('GET', '/api/inventory/status');
+                if (!res.ok || !res.data.items) return;
+                res.data.items.forEach(item => {
+                    const prep = item.preparation === 'Prefiltered' ? 'Pre-R' : item.preparation;
+                    const id = cellId(item.blood_type, prep);
+                    const el = document.getElementById(id);
+                    if (el && item.current_qty != null) {
+                        el.value = item.current_qty;
+                        // 신청량 즉시 계산
+                        onQtyInput(item.blood_type, prep, item.current_qty);
+                    }
+                });
+            } catch (_) { }
         }
 
         // ── 적정재고 조회 ────────────────────────────────────────────────────────
@@ -892,73 +912,54 @@
             } catch (_) { }
         }
 
-        // ── 재고 저장 (AJAX - 저장 후 수량 유지) ────────────────────────────────
+        // ── 재고 저장 — bulk-save API 사용 (qty=절대값, 저장후 수량 유지) ──────
         async function submitForm() {
             if (!currentUser) { showMsg('먼저 로그인하세요', 'error'); return; }
 
             const remark = document.getElementById('remark').value.trim();
-            // remark는 선택사항 - 필수 체크 없음
 
-            // 업데이트 목록 수집
-            const updates = [];
-            const allPreps = [
-                ...BASE_PREPS,
-                ...customPreps,
-            ];
+            // 입력된 셀 수집 (값이 있는 것만)
+            const items = [];
+            const allPreps = [...BASE_PREPS, ...customPreps];
 
             allPreps.forEach(p => {
+                if (!p.prep_id) return;  // 커스텀 제제(prep_id=null)는 bulk-save 제외
                 BLOOD_TYPES.forEach(bt => {
                     const el = document.getElementById(cellId(bt, p.name));
-                    if (!el) return;
-                    const v = parseInt(el.value) || 0;
-                    if (v === 0) return;  // 0이면 스킵
-
-                    if (p.prep_id) {
-                        // 기본 제제: prep_id 있음
-                        updates.push({
-                            blood_type: bt,
-                            prep_id: p.prep_id,
-                            in_qty: v > 0 ? v : 0,
-                            out_qty: v < 0 ? -v : 0,
-                            remark: remark || `${bt} ${p.name} 재고 업데이트`
-                        });
-                    } else {
-                        // 사용자 추가 제제: prep_id=1(PRBC)로 보내고 remark에 제제명 명시
-                        updates.push({
-                            blood_type: bt,
-                            prep_id: 1,
-                            in_qty: v > 0 ? v : 0,
-                            out_qty: v < 0 ? -v : 0,
-                            remark: `[${p.name}] ${remark || '사용자 추가 제제 입력'}`
-                        });
-                    }
+                    if (!el || el.value === '') return;  // 빈 칸은 스킵
+                    items.push({
+                        blood_type: bt,
+                        prep_id: p.prep_id,
+                        qty: parseInt(el.value) || 0
+                    });
                 });
             });
 
-            if (updates.length === 0) { showMsg('변경된 수량이 없습니다', 'error'); return; }
+            if (items.length === 0) { showMsg('입력된 수량이 없습니다', 'error'); return; }
 
             showLoading(true); hideMsg();
-            let ok = 0, fail = 0;
+            try {
+                const res = await api('POST', '/api/inventory/bulk-save', {
+                    items,
+                    remark: remark || null
+                });
 
-            // Promise.all로 병렬 전송
-            await Promise.all(updates.map(async u => {
-                try {
-                    const res = await api('POST', '/api/inventory/update', u);
-                    if (res.ok) ok++;
-                    else fail++;
-                } catch (_) { fail++; }
-            }));
-
-            showLoading(false);
-
-            // ✅ 저장 후 수량 초기화 하지 않음 — 입력값 유지
-            if (fail === 0) {
-                showMsg(`✅ ${ok}개 항목 저장 완료 (수량은 유지됩니다)`, 'success');
-            } else {
-                showMsg(`⚠️ ${ok}개 성공, ${fail}개 실패`, 'error');
+                if (res.ok) {
+                    const d = res.data;
+                    if (d.failed === 0) {
+                        showMsg(`✅ ${d.success}개 저장 완료 (입력값 유지)`, 'success');
+                    } else {
+                        showMsg(`⚠️ ${d.success}개 성공 / ${d.failed}개 실패`, 'error');
+                    }
+                } else {
+                    showMsg('저장 실패: ' + (res.data.detail || '서버 오류'), 'error');
+                }
+            } catch (err) {
+                showMsg('네트워크 오류: ' + err.message, 'error');
             }
 
-            // 신청량 재계산만 갱신
+            showLoading(false);
+            // 수량은 유지, 신청량만 재계산
             await loadSafetyTargets();
         }
 
@@ -995,6 +996,43 @@
             buildBody();
             hideAddPrepForm();
             showMsg(`"${name}" 행이 추가되었습니다`, 'success');
+            // 새 행에 Enter 포커스 이동 이벤트 재등록
+            attachEnterNavigation();
+        }
+
+        // ── Enter 키 → 오른쪽(A→B→O→AB) 포커스 자동 이동 ─────────────────────
+        function attachEnterNavigation() {
+            // 모든 qty-input에 이벤트 달기 (중복 방지를 위해 기존 핸들러 제거)
+            document.querySelectorAll('.qty-input').forEach(el => {
+                el.removeEventListener('keydown', handleEnterKey);
+                el.addEventListener('keydown', handleEnterKey);
+            });
+        }
+        function handleEnterKey(e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+
+            // 현재 input의 id = "BT__PrepName"
+            const [curBt, rawPrep] = this.id.split('__');
+            const prepName = rawPrep.replace(/_/g, ' ');
+
+            // 같은 제제 행에서 다음 혈액형으로 이동
+            const btIdx = BLOOD_TYPES.indexOf(curBt);
+            const nextBt = BLOOD_TYPES[btIdx + 1];   // 없으면 undefined
+
+            if (nextBt) {
+                const nextEl = document.getElementById(cellId(nextBt, prepName));
+                if (nextEl) { nextEl.focus(); nextEl.select(); }
+            } else {
+                // 마지막 열(AB)이면 다음 행의 A칸으로 이동
+                const allPreps = [...BASE_PREPS.map(p => p.name), ...customPreps.map(p => p.name)];
+                const prepIdx = allPreps.indexOf(prepName);
+                const nextPrep = allPreps[prepIdx + 1];
+                if (nextPrep) {
+                    const nextEl = document.getElementById(cellId('A', nextPrep));
+                    if (nextEl) { nextEl.focus(); nextEl.select(); }
+                }
+            }
         }
 
         // ── 관리자: RBC 재고비 일괄 적용 ────────────────────────────────────────
@@ -1036,6 +1074,7 @@
         // ── 초기화 ───────────────────────────────────────────────────────────────
         buildHeader();
         buildBody();
+        attachEnterNavigation();   // Enter키 포커스 이동 초기 등록
     </script>
 </body>
 

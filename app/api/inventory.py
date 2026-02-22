@@ -1,15 +1,19 @@
 """
 Inventory API endpoints
 """
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.database import get_db
-from app.database.models import BloodMaster
+from app.database.models import BloodMaster, Inventory, StockLog
 from app.schemas.schemas import (
     InventoryStatusResponse,
     InventoryItem,
     InventoryUpdateRequest,
-    InventoryUpdateResponse
+    InventoryUpdateResponse,
+    BulkSaveRequest,
+    BulkSaveResponse,
+    BulkSaveResult,
 )
 from app.services.inventory_service import (
     get_inventory_status,
@@ -132,3 +136,102 @@ def update_inventory(request: InventoryUpdateRequest, db: Session = Depends(get_
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"재고 업데이트 중 오류가 발생했습니다: {str(e)}"
         )
+
+
+@router.post("/bulk-save", response_model=BulkSaveResponse)
+def bulk_save_inventory(request: BulkSaveRequest, db: Session = Depends(get_db)):
+    """
+    Matrix UI에서 입력한 재고 수량을 한 번에 저장 (Bulk Insert/Update)
+
+    - qty는 절대값(입력한 새 재고량). 서버에서 delta 자동 계산.
+    - delta > 0 → in_qty,  delta < 0 → out_qty 로 StockLog 기록
+    - updated_at은 서버 시간 기준으로 자동 기록
+    """
+    results: list[BulkSaveResult] = []
+    success_count = 0
+    fail_count = 0
+
+    for item in request.items:
+        try:
+            # 제제 정보 조회
+            bm = db.query(BloodMaster).filter(BloodMaster.id == item.prep_id).first()
+            if not bm:
+                results.append(BulkSaveResult(
+                    blood_type=item.blood_type, prep_id=item.prep_id,
+                    preparation="unknown", previous_qty=0, new_qty=item.qty,
+                    delta=0, success=False, error=f"prep_id {item.prep_id} 없음"
+                ))
+                fail_count += 1
+                continue
+
+            # 현재 재고 조회 (없으면 0으로 신규 생성)
+            inv = db.query(Inventory).filter(
+                Inventory.blood_type == item.blood_type,
+                Inventory.prep_id   == item.prep_id
+            ).first()
+
+            if inv is None:
+                inv = Inventory(
+                    blood_type=item.blood_type,
+                    prep_id=item.prep_id,
+                    current_qty=0
+                )
+                db.add(inv)
+                db.flush()
+
+            previous_qty = inv.current_qty
+            delta        = item.qty - previous_qty
+            now          = datetime.now()
+
+            # 재고 업데이트 (절대값으로 덮어쓰기 + 서버 타임스탬프)
+            inv.current_qty = item.qty
+            inv.updated_at  = now
+
+            # 재고 변동이 있을 때만 StockLog 기록
+            if delta != 0:
+                log = StockLog(
+                    log_date   = now,
+                    blood_type = item.blood_type,
+                    prep_id    = item.prep_id,
+                    in_qty     = delta  if delta > 0 else 0,
+                    out_qty    = -delta if delta < 0 else 0,
+                    remark     = request.remark or f"{item.blood_type} {bm.preparation} 재고 갱신"
+                )
+                db.add(log)
+
+            results.append(BulkSaveResult(
+                blood_type   = item.blood_type,
+                prep_id      = item.prep_id,
+                preparation  = bm.preparation,
+                previous_qty = previous_qty,
+                new_qty      = item.qty,
+                delta        = delta,
+                success      = True
+            ))
+            success_count += 1
+
+        except Exception as e:
+            db.rollback()
+            results.append(BulkSaveResult(
+                blood_type=item.blood_type, prep_id=item.prep_id,
+                preparation="error", previous_qty=0, new_qty=item.qty,
+                delta=0, success=False, error=str(e)
+            ))
+            fail_count += 1
+
+    # 성공 항목 일괄 커밋
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"DB 커밋 실패: {str(e)}"
+        )
+
+    return BulkSaveResponse(
+        total   = len(request.items),
+        success = success_count,
+        failed  = fail_count,
+        results = results
+    )

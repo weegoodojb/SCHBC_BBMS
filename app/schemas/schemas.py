@@ -74,6 +74,38 @@ class InventoryUpdateResponse(BaseModel):
     alert: Optional[dict] = Field(None, description="알림 이메일 데이터 (subject, body)")
 
 
+# ============= Bulk Save Schemas =============
+
+class BulkSaveItem(BaseModel):
+    """Matrix 테이블 단일 셀 데이터 - 절대값(현재 재고량)으로 저장"""
+    blood_type: str  = Field(..., description="혈액형 (A/B/O/AB)")
+    prep_id:    int  = Field(..., ge=1, description="제제 ID (BloodMaster.id)")
+    qty:        int  = Field(..., ge=0, description="사용자가 입력한 현재 재고 수량(절대값)")
+
+class BulkSaveRequest(BaseModel):
+    """Matrix 전체 한 번에 저장 요청"""
+    items:  list[BulkSaveItem] = Field(..., min_length=1, description="입력된 셀 목록")
+    remark: Optional[str]      = Field(None, description="공통 비고")
+
+class BulkSaveResult(BaseModel):
+    """개별 셀 저장 결과"""
+    blood_type:   str
+    prep_id:      int
+    preparation:  str
+    previous_qty: int
+    new_qty:      int
+    delta:        int   # new_qty - previous_qty (양수=입고, 음수=출고)
+    success:      bool
+    error:        Optional[str] = None
+
+class BulkSaveResponse(BaseModel):
+    """Bulk Save 전체 결과"""
+    total:    int = Field(..., description="처리 시도 항목 수")
+    success:  int = Field(..., description="성공 항목 수")
+    failed:   int = Field(..., description="실패 항목 수")
+    results:  list[BulkSaveResult]
+
+
 # ============= Common Schemas =============
 
 class MessageResponse(BaseModel):
