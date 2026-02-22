@@ -1,6 +1,19 @@
 # SCHBC BBMS 프로젝트 로그
 
-## 2026-02-19: Railway 배포 안정화 (세션 종료)
+## 2026-02-22: Matrix UI 개선 + Bulk Save API (세션 종료)
+
+- **UI/UX 5종 개선**: 모바일 최적화, 테이블 매트릭스(제제=행/혈액형=열), 동적 제제 추가(드롭다운), 비고 optional, 저장 후 수량 유지
+- **혈액형 색상**: A=오렌지, B=레드, O=블루, AB=블랙 (배경 연색 적용)
+- **신청량 조건**: PRBC, Pre-R, FFP만 표시 (PC, SDP, Cryo 제외)
+- **Bulk Save API**: `POST /api/inventory/bulk-save` 신설 (qty 절대값, delta 자동 계산, StockLog 기록, updated_at 서버 타임스탬프)
+- **Pydantic 스키마**: `BulkSaveItem/Request/Result/Response` 4종 추가
+- **최근 재고 불러오기**: 로그인 직후 `loadInventory()` → input 자동 세팅
+- **Enter 포커스 이동**: A→B→O→AB 자동 이동, AB에서 Enter → 다음 제제 A칸
+- 최종 커밋: `86dfe2a` | GitHub: `weegoodojb/SCHBC_BBMS`
+
+---
+
+
 
 - `templates/index.html` 신설: GAS 제거, fetch() API 기반 독립 프론트엔드
 - `main.py`: Jinja2Templates + StaticFiles, 루트(/) → HTML 서빙
