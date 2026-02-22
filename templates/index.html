@@ -198,14 +198,16 @@
         /* 제제명 열 (첫 번째 열) */
         .grid-table th.prep-header {
             background: #f0f2ff;
-            padding: 6px 4px;
+            padding: 6px 2px;
             text-align: left;
             font-weight: 700;
             border: 1px solid #d0d0e8;
-            font-size: 11px;
+            font-size: 10px;
             color: #444;
             white-space: nowrap;
-            min-width: 52px;
+            min-width: 26px;
+            max-width: 26px;
+            width: 26px;
         }
 
         /* 혈액형 열 헤더 */
@@ -235,10 +237,14 @@
         .grid-table td.prep-cell {
             background: #f5f5f5;
             font-weight: 700;
-            font-size: 11px;
+            font-size: 10px;
             text-align: left;
-            padding-left: 6px;
+            padding-left: 3px;
             white-space: nowrap;
+            min-width: 26px;
+            max-width: 26px;
+            width: 26px;
+            overflow: hidden;
         }
 
         .grid-table td.prep-cell.custom-row {
@@ -379,13 +385,14 @@
             display: flex;
         }
 
-        .add-prep-form input {
+        .add-prep-form select {
             flex: 1 1 120px;
             padding: 7px 10px;
             border: 1px solid #c9bef0;
             border-radius: 6px;
             font-size: 13px;
-            min-width: 100px;
+            min-width: 120px;
+            background: white;
         }
 
         .add-prep-confirm {
@@ -628,7 +635,14 @@
         <div class="add-prep-section">
             <button class="add-prep-btn" onclick="showAddPrepForm()">➕ 제제 추가</button>
             <div class="add-prep-form" id="addPrepForm">
-                <input type="text" id="newPrepName" placeholder="제제명 입력 (예: RhD- PRBC)" maxlength="30">
+                <select id="newPrepName">
+                    <option value="">-- 제제 선택 --</option>
+                    <option value="Rh-PRBC">Rh-PRBC</option>
+                    <option value="Rh-FFP">Rh-FFP</option>
+                    <option value="Rh-SDP">Rh-SDP</option>
+                    <option value="Rh-PC">Rh-PC</option>
+                    <option value="Rh-PreR">Rh-PreR</option>
+                </select>
                 <button class="add-prep-confirm" onclick="confirmAddPrep()">추가</button>
                 <button class="add-prep-cancel" onclick="hideAddPrepForm()">취소</button>
             </div>
@@ -945,13 +959,17 @@
             document.getElementById('newPrepName').value = '';
         }
         function confirmAddPrep() {
-            const name = document.getElementById('newPrepName').value.trim();
-            if (!name) { showMsg('제제명을 입력하세요', 'error'); return; }
+            const name = document.getElementById('newPrepName').value;
+            if (!name) { showMsg('추가할 제제를 선택하세요', 'error'); return; }
 
             const allNames = [...BASE_PREPS.map(p => p.name), ...customPreps.map(p => p.name)];
-            if (allNames.includes(name)) { showMsg('이미 존재하는 제제명입니다', 'error'); return; }
+            if (allNames.includes(name)) { showMsg('이미 추가된 제제입니다', 'error'); return; }
 
             customPreps.push({ name, prep_id: null });
+            // 선택된 항목을 드롭다운에서 비활성화
+            const opt = document.querySelector(`#newPrepName option[value="${name}"]`);
+            if (opt) opt.disabled = true;
+            document.getElementById('newPrepName').value = '';
             buildBody();
             hideAddPrepForm();
             showMsg(`"${name}" 행이 추가되었습니다`, 'success');
