@@ -1,5 +1,16 @@
 # SCHBC BBMS 프로젝트 로그
 
+## 2026-02-25: UI/UX 추가 구현 및 감사 필드 적용, Auth 버그픽스
+
+- **auth.py 픽스**: `verify_password` 인자 순서 오류 정상화(72-byte string 대응 완료), 하드코딩된 패스워드 로직 제거
+- **UI 레이아웃 넓이 조정**: 제제 항목(명칭) 열(`prep-cell`, `prep-header`) 넓이를 기존 26px에서 50px 고정넓이(Fixed Width)로 1.5배 확장하여 텍스트 클리핑 방지
+- **제제 항목 신규 추가**: 드롭다운 "제제 선택" 기본 목록에 **'Washed PLT'** 반영
+- **감사 로그(Audit Trail) 적용**:
+  - `StockLog` 모델 및 `BulkSaveRequest` 등에 `user_id`, `expiry_ok`(유효기간 확인), `visual_ok`(육안 확인) 필드 신규 추가
+  - `templates/index.html` 하단 비고(remark) 그룹 상단에 해당 체크박스 노출 및 API Payload 적용
+- **AB형 Cryo 재고 로직 보강**: `inventory_service.py` 내 `get_inventory_status` 함수에 "컴포넌트=Cryo && 혈액형=AB"일 경우 `target_qty`를 10으로 고정 조건 삽입
+- 작업 적용 커밋: `main` 브랜치 Push 완료
+
 ## 2026-02-22: Matrix UI 개선 + Bulk Save API (세션 종료)
 
 - **UI/UX 5종 개선**: 모바일 최적화, 테이블 매트릭스(제제=행/혈액형=열), 동적 제제 추가(드롭다운), 비고 optional, 저장 후 수량 유지
