@@ -205,9 +205,10 @@
             font-size: 10px;
             color: #444;
             white-space: nowrap;
-            min-width: 26px;
-            max-width: 26px;
-            width: 26px;
+            /* 고정 너비 (기존의 1.5배 이상 확보) */
+            min-width: 50px;
+            max-width: 50px;
+            width: 50px;
         }
 
         /* 혈액형 열 헤더 */
@@ -654,6 +655,7 @@
             <div class="add-prep-form" id="addPrepForm">
                 <select id="newPrepName">
                     <option value="">-- 제제 선택 --</option>
+                    <option value="Washed PLT">Washed PLT</option>
                     <option value="Rh-PRBC">Rh-PRBC</option>
                     <option value="Rh-FFP">Rh-FFP</option>
                     <option value="Rh-SDP">Rh-SDP</option>
@@ -667,6 +669,11 @@
 
         <!-- 하단 -->
         <div class="bottom-section">
+            <div class="audit-group" style="margin-bottom: 8px; font-size: 13px; font-weight: 600;">
+                <label style="cursor: pointer;"><input type="checkbox" id="expiryOk" checked> 유효기간 확인(OK)</label>
+                <label style="cursor: pointer; margin-left: 14px;"><input type="checkbox" id="visualOk" checked> 육안
+                    확인(OK)</label>
+            </div>
             <div class="remark-group">
                 <label for="remark">비고</label>
                 <textarea id="remark" placeholder="입출고 사유, 특이사항 등 (선택사항)"></textarea>
@@ -937,11 +944,17 @@
 
             if (items.length === 0) { showMsg('입력된 수량이 없습니다', 'error'); return; }
 
+            const expiryOk = document.getElementById('expiryOk') ? document.getElementById('expiryOk').checked : true;
+            const visualOk = document.getElementById('visualOk') ? document.getElementById('visualOk').checked : true;
+
             showLoading(true); hideMsg();
             try {
                 const res = await api('POST', '/api/inventory/bulk-save', {
                     items,
-                    remark: remark || null
+                    remark: remark || null,
+                    user_id: currentUser.user_id,
+                    expiry_ok: expiryOk,
+                    visual_ok: visualOk
                 });
 
                 if (res.ok) {

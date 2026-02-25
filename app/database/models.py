@@ -5,7 +5,7 @@ Database Models for SCHBC BBMS
 """
 from datetime import datetime
 from math import ceil
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, UniqueConstraint, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -163,6 +163,12 @@ class StockLog(Base):
     in_qty = Column(Integer, nullable=False, default=0, comment='입고량')
     out_qty = Column(Integer, nullable=False, default=0, comment='출고량')
     remark = Column(Text, comment='비고')
+    
+    # Audit trail fields
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=True, comment='작업자 ID')
+    expiry_ok = Column(Boolean, default=True, comment='유효기간 확인')
+    visual_ok = Column(Boolean, default=True, comment='육안/성상 확인')
+    
     created_at = Column(DateTime, default=datetime.now, comment='생성일시')
 
     blood_prep = relationship('BloodMaster', back_populates='stock_logs')

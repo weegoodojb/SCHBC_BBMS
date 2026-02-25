@@ -195,7 +195,10 @@ def bulk_save_inventory(request: BulkSaveRequest, db: Session = Depends(get_db))
                     prep_id    = item.prep_id,
                     in_qty     = delta  if delta > 0 else 0,
                     out_qty    = -delta if delta < 0 else 0,
-                    remark     = request.remark or f"{item.blood_type} {bm.preparation} 재고 갱신"
+                    remark     = request.remark or f"{item.blood_type} {bm.preparation} 재고 갱신",
+                    user_id    = request.user_id,
+                    expiry_ok  = request.expiry_ok,
+                    visual_ok  = request.visual_ok
                 )
                 db.add(log)
 

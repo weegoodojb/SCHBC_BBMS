@@ -86,6 +86,9 @@ class BulkSaveRequest(BaseModel):
     """Matrix 전체 한 번에 저장 요청"""
     items:  list[BulkSaveItem] = Field(..., min_length=1, description="입력된 셀 목록")
     remark: Optional[str]      = Field(None, description="공통 비고")
+    user_id: Optional[int]     = Field(None, description="저장 작업자 ID")
+    expiry_ok: bool            = Field(default=True, description="유효기간 확인됨")
+    visual_ok: bool            = Field(default=True, description="육안/성상 확인됨")
 
 class BulkSaveResult(BaseModel):
     """개별 셀 저장 결과"""

@@ -163,7 +163,11 @@ def get_inventory_status(db: Session) -> Tuple[List[Dict], int, float]:
             targets = rbc_targets.get(inv.blood_type, {})
             target_qty = targets.get(blood_master.preparation, None)
         else:
+            # 기본 설정은 SafetyConfig의 safety_qty를 활용
             target_qty = safety_config.safety_qty
+            # [기능 추가] Cryo AB형의 적정재고는 10으로 강제
+            if blood_master.component == 'Cryo' and inv.blood_type == 'AB':
+                target_qty = 10
 
         request_qty = max(0, (target_qty or 0) - inv.current_qty)
 
