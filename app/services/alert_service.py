@@ -6,7 +6,7 @@ from typing import Dict, Optional
 import logging
 
 from app.database.models import Inventory, BloodMaster, SafetyConfig
-from app.services.email_service import EmailService
+
 
 logger = logging.getLogger(__name__)
 

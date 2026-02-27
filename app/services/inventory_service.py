@@ -12,7 +12,7 @@ from app.database.models import (
     BloodMaster, SafetyConfig, SystemSettings, Inventory,
     StockLog, MasterConfig, InventoryRatioHistory
 )
-from app.services.email_service import EmailService
+
 
 logger = logging.getLogger(__name__)
 

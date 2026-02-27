@@ -108,11 +108,7 @@ def update_inventory(request: InventoryUpdateRequest, db: Session = Depends(get_
             # Check individual item alert
             alert_data = check_single_item_alert(db, request.blood_type, request.prep_id)
         
-        # Format alert email if needed (GAS will send it)
-        alert_email = None
-        if alert_data:
-            alert_email = EmailService.format_alert_email(alert_data)
-            EmailService.log_alert(alert_data)
+        # (구 alert 이메일 기능 제거 - danger alert 시스템으로 교체됨)
         
         return InventoryUpdateResponse(
             success=True,
