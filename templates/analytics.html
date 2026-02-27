@@ -359,6 +359,9 @@
                 globalRbcData = data.chart_rbc; // 원본 보존
                 renderRbcChart();
                 renderChart('ffpChart', ffpChartIns, data.chart_ffp, 'FFP (신선동결혈장) 재고', false);
+                // 입고량 차트 추가
+                renderChart('rbcInboundChart', rbcInboundChartIns, data.chart_inbound_rbc, 'RBC 입고량 (Unit)', false);
+                renderChart('ffpInboundChart', ffpInboundChartIns, data.chart_inbound_ffp, 'FFP 입고량 (Unit)', false);
 
             } catch (e) {
                 console.error(e);

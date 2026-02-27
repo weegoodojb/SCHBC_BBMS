@@ -135,8 +135,10 @@ def update_inventory(request: InventoryUpdateRequest, db: Session = Depends(get_
         )
 
 
+from fastapi import BackgroundTasks
+
 @router.post("/bulk-save", response_model=BulkSaveResponse)
-def bulk_save_inventory(request: BulkSaveRequest, db: Session = Depends(get_db)):
+def bulk_save_inventory(request: BulkSaveRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """
     Matrix UI에서 입력한 재고 수량을 한 번에 저장 (Bulk Insert/Update)
 
@@ -277,12 +279,10 @@ def bulk_save_inventory(request: BulkSaveRequest, db: Session = Depends(get_db))
             recipients = [e.email for e in db.query(AlertEmail).filter(AlertEmail.is_active == True).all()]
             if recipients:
                 for da in danger_alerts:
-                    t = threading.Thread(
-                        target=send_danger_alert,
-                        args=(da["blood_type"], da["rbc_qty"], da["actual_ratio"], da["danger_threshold"], recipients),
-                        daemon=True
+                    background_tasks.add_task(
+                        send_danger_alert,
+                        da["blood_type"], da["rbc_qty"], da["actual_ratio"], da["danger_threshold"], recipients
                     )
-                    t.start()
     except Exception as e:
         pass  # 이메일 오류가 재고 저장 성공을 막으면 안됨
 

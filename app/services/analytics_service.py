@@ -119,12 +119,11 @@ def get_analytics_data(db: Session, start_date: str, end_date: str):
     # DCR 매핑: (blood_type) -> sum of DCR for RBC preps
     dcr_map = {'A': 0.0, 'B': 0.0, 'O': 0.0, 'AB': 0.0}
     for mc in master_configs:
-        # PRBC, Pre-R, Prefiltered 등 RBC 계열인지 확인
-        if mc.prep_id in rbc_preps and mc.daily_consumption_rate:
+        if mc.config_key == 'rbc_factors' and mc.daily_consumption_rate:
             if mc.blood_type in dcr_map:
                  dcr_map[mc.blood_type] += mc.daily_consumption_rate
             elif not mc.blood_type:
-                # 공통 설정인 경우 모든 혈액형에 가산 (현재 시스템 구조상 혈액형별로 분리되어 있을 것임)
+                # 공통 설정인 경우
                 for bt in dcr_map.keys():
                     dcr_map[bt] += mc.daily_consumption_rate
 
