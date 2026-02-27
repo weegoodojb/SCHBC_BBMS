@@ -2,7 +2,7 @@
 
 ## 2026-02-25: UI/UX 추가 구현 및 감사 필드 적용, Auth 버그픽스
 
-- **auth.py 픽스**: `verify_password` 인자 순서 오류 정상화(72-byte string 대응 완료), 하드코딩된 패스워드 로직 제거
+- **auth.py 픽스**: `verify_password` 인자 순서 오류를 정상화하고, **bcrypt의 72바이트 입력 제한 에러(password cannot be longer than 72 bytes)를 원천 차단**하기 위해 `security.py`에 SHA-256 사전 해싱(Pre-hashing) 후 Base64 인코딩 방식을 적용하여 근본적으로 버그 해결 완료
 - **UI 레이아웃 넓이 조정**: 제제 항목(명칭) 열(`prep-cell`, `prep-header`) 넓이를 기존 26px에서 50px 고정넓이(Fixed Width)로 1.5배 확장하여 텍스트 클리핑 방지
 - **제제 항목 신규 추가**: 드롭다운 "제제 선택" 기본 목록에 **'Washed PLT'** 반영
 - **감사 로그(Audit Trail) 적용**:
