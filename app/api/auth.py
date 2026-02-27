@@ -59,5 +59,6 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         user_id=user.id,
         emp_id=user.emp_id,
         name=user.name,
-        email=user.email
+        email=user.email,
+        is_admin=user.is_admin
     )

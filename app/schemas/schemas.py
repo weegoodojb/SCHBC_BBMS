@@ -22,6 +22,7 @@ class LoginResponse(BaseModel):
     emp_id: str = Field(..., description="직원번호")
     name: str = Field(..., description="이름")
     email: Optional[str] = Field(None, description="이메일")
+    is_admin: int = Field(default=0, description="관리자 권한 여부")
 
 
 class UserResponse(BaseModel):
