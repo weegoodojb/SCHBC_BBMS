@@ -24,6 +24,35 @@ class LoginResponse(BaseModel):
     email: Optional[str] = Field(None, description="이메일")
 
 
+class UserResponse(BaseModel):
+    id: int
+    emp_id: str
+    name: str
+    email: Optional[str] = None
+    is_admin: int
+    remark: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class UserCreate(BaseModel):
+    emp_id: str
+    name: str
+    password: str
+    email: Optional[str] = None
+    is_admin: int = 0
+    remark: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    is_admin: Optional[int] = None
+    remark: Optional[str] = None
+
+class UserPasswordReset(BaseModel):
+    new_password: str
+
+
 # ============= Inventory Schemas =============
 
 class InventoryItem(BaseModel):

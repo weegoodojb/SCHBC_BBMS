@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
 
-from app.api import auth, inventory, config
+from app.api import auth, inventory, config, users
 from app.core.config import settings
 from app.database.database import test_connection
 
@@ -64,6 +64,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(auth.router)
 app.include_router(inventory.router)
 app.include_router(config.router, prefix="/api/config", tags=["Configuration"])
+app.include_router(users.router)
 
 
 @app.get("/", response_class=HTMLResponse)

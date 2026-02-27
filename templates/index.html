@@ -608,6 +608,113 @@
                 padding: 10px 6px;
             }
         }
+
+        /* ── 모달 기본 ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #fff;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        .modal-header h2 {
+            font-size: 16px;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        .user-table th,
+        .user-table td {
+            border: 1px solid #eee;
+            padding: 6px;
+            text-align: center;
+        }
+
+        .user-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: #fff;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .user-form {
+            display: grid;
+            gap: 8px;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        .user-form input,
+        .user-form select {
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
     </style>
 </head>
 
@@ -632,10 +739,49 @@
         <!-- 사용자 정보 -->
         <div class="user-info" id="userInfo">
             <span id="userName" style="font-size:13px;font-weight:600;"></span>
-            <button class="logout-btn" onclick="logout()">로그아웃</button>
+            <div>
+                <button class="logout-btn" id="btnUserManager" onclick="openUserModal()"
+                    style="display:none; margin-right:5px; background: #5541a8; color: white; border-color: #5541a8;">👥
+                    사용자 관리</button>
+                <button class="logout-btn" onclick="logout()">로그아웃</button>
+            </div>
         </div>
 
         <div class="message" id="message"></div>
+
+        <!-- 사용자 관리 모달 -->
+        <div class="modal-overlay" id="userModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>👥 사용자 관리</h2>
+                    <button class="modal-close" onclick="closeUserModal()">&times;</button>
+                </div>
+
+                <table class="user-table" id="userTable">
+                    <thead>
+                        <tr>
+                            <th>사번</th>
+                            <th>이름</th>
+                            <th>권한</th>
+                            <th>작업</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+
+                <div class="user-form">
+                    <h3 style="font-size:14px; margin-bottom:4px;">➕ 새 사용자 등록</h3>
+                    <input type="text" id="newEmpId" placeholder="사번 (필수)">
+                    <input type="text" id="newName" placeholder="이름 (필수)">
+                    <input type="password" id="newPassword" placeholder="기초 비밀번호 (필수)">
+                    <select id="newRole">
+                        <option value="0">일반 사용자</option>
+                        <option value="1">관리자</option>
+                    </select>
+                    <button class="btn-small btn-primary" onclick="createUser()">등록</button>
+                </div>
+            </div>
+        </div>
         <div class="loading" id="loading">
             <div class="spinner"></div>
             <div style="font-size:13px;">처리 중...</div>
@@ -865,6 +1011,8 @@
                     document.getElementById('loginSection').classList.remove('active');
                     document.getElementById('userInfo').classList.add('active');
                     document.getElementById('userName').textContent = res.data.name + ' 님';
+                    const btnUserManager = document.getElementById('btnUserManager');
+                    if (btnUserManager) btnUserManager.style.display = res.data.is_admin ? 'inline-block' : 'none';
                     showMsg('로그인 성공! 기준 정보를 불러오는 중...', 'success');
                     // 로그인 후 적정재고 기준만 로드 (최근 재고는 불러오지 않음)
                     await loadSafetyTargets();
@@ -883,6 +1031,8 @@
             token = null; currentUser = null;
             document.getElementById('loginSection').classList.add('active');
             document.getElementById('userInfo').classList.remove('active');
+            const btnUserManager = document.getElementById('btnUserManager');
+            if (btnUserManager) btnUserManager.style.display = 'none';
             hideMsg();
         }
 
@@ -1159,6 +1309,117 @@
                 showMsg('서버 오류: ' + err.message, 'error');
             }
             showLoading(false);
+        }
+
+        // ── 사용자 관리 모달 로직 ──────────────────────────────────────────────────
+        function openUserModal() {
+            document.getElementById('userModal').classList.add('active');
+            loadUsers();
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.remove('active');
+        }
+
+        async function loadUsers() {
+            try {
+                const res = await api('GET', '/api/users/');
+                if (!res.ok) throw new Error(res.data?.detail || '사용자 목록 로드 실패');
+
+                const tbody = document.querySelector('#userTable tbody');
+                tbody.innerHTML = '';
+
+                res.data.forEach(user => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${user.emp_id}</td>
+                        <td>${user.name}</td>
+                        <td>
+                            <select onchange="updateUserRole(${user.id}, this.value)" style="padding:2px; font-size:11px;">
+                                <option value="0" ${user.is_admin === 0 ? 'selected' : ''}>일반</option>
+                                <option value="1" ${user.is_admin === 1 ? 'selected' : ''}>관리자</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button class="btn-small btn-warning" onclick="resetPassword(${user.id}, '${user.name}')">PW변경</button>
+                            <button class="btn-small btn-danger" onclick="deleteUser(${user.id}, '${user.name}')">삭제</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        async function createUser() {
+            const empId = document.getElementById('newEmpId').value.trim();
+            const name = document.getElementById('newName').value.trim();
+            const password = document.getElementById('newPassword').value.trim();
+            const role = parseInt(document.getElementById('newRole').value);
+
+            if (!empId || !name || !password) {
+                alert("사용자 정보를 모두 입력해주세요."); return;
+            }
+
+            try {
+                const res = await api('POST', '/api/users/', {
+                    emp_id: empId,
+                    name: name,
+                    password: password,
+                    is_admin: role
+                });
+
+                if (res.ok) {
+                    alert('사용자 등록 완료');
+                    document.getElementById('newEmpId').value = '';
+                    document.getElementById('newName').value = '';
+                    document.getElementById('newPassword').value = '';
+                    loadUsers();
+                } else {
+                    alert(res.data?.detail || '등록 실패');
+                }
+            } catch (e) {
+                alert("서버 오류: " + e.message);
+            }
+        }
+
+        async function updateUserRole(userId, newRole) {
+            try {
+                const res = await api('PUT', `/api/users/${userId}`, { is_admin: parseInt(newRole) });
+                if (!res.ok) throw new Error(res.data?.detail || '권한 변경 실패');
+                alert('권한이 변경되었습니다.');
+                loadUsers();
+            } catch (e) {
+                alert(e.message);
+                loadUsers();
+            }
+        }
+
+        async function resetPassword(userId, userName) {
+            const newPw = prompt(`[${userName}] 님의 초기화할 새 비밀번호를 입력하세요:`);
+            if (!newPw) return;
+
+            try {
+                const res = await api('POST', `/api/users/${userId}/reset-password`, { new_password: newPw });
+                if (!res.ok) throw new Error(res.data?.detail || '비밀번호 초기화 실패');
+                alert('비밀번호가 초기화되었습니다.');
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        async function deleteUser(userId, userName) {
+            if (!confirm(`정말로 [${userName}] 사용자를 삭제하시겠습니까?`)) return;
+
+            try {
+                const res = await api('DELETE', `/api/users/${userId}`);
+                if (!res.ok) throw new Error(res.data?.detail || '삭제 실패');
+                alert('삭제되었습니다.');
+                loadUsers();
+            } catch (e) {
+                alert(e.message);
+            }
         }
 
         // ── 유틸 ─────────────────────────────────────────────────────────────────
