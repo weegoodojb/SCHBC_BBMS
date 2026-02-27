@@ -24,6 +24,18 @@ async def lifespan(app: FastAPI):
     ok = test_connection()
     if ok:
         logger.info("✅ Supabase PostgreSQL 연결 성공")
+        try:
+            from sqlalchemy import text
+            from app.database.database import SessionLocal
+            db = SessionLocal()
+            db.execute(text("ALTER TABLE stock_log ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id);"))
+            db.execute(text("ALTER TABLE stock_log ADD COLUMN IF NOT EXISTS expiry_ok BOOLEAN DEFAULT TRUE;"))
+            db.execute(text("ALTER TABLE stock_log ADD COLUMN IF NOT EXISTS visual_ok BOOLEAN DEFAULT TRUE;"))
+            db.commit()
+            db.close()
+            logger.info("✅ DB 스키마 마이그레이션 확인 (stock_log 확장 필드)")
+        except Exception as e:
+            logger.error(f"⚠️ DB 스키마 자동 패치 실패: {e}")
     else:
         logger.warning("⚠️ DB 연결 실패 - DATABASE_URL 확인 필요")
     yield
