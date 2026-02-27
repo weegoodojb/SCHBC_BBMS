@@ -2,6 +2,7 @@ import pandas as pd
 import io
 import math
 from typing import List, Dict, Any
+from datetime import datetime
 
 def parse_excel_inventory(file_bytes: bytes) -> Dict[str, Any]:
     """
@@ -18,8 +19,26 @@ def parse_excel_inventory(file_bytes: bytes) -> Dict[str, Any]:
     bt_col = next((c for c in cols if "혈액형" in str(c)), None)
     prep_col = next((c for c in cols if "혈액명" in str(c) or "제제명" in str(c) or "성분" in str(c)), None)
     
+    # 공급일 컬럼 찾기 (없으면 2번째 컬럼 사용)
+    date_col = next((c for c in cols if "공급일" in str(c)), None)
+    if not date_col and len(cols) >= 2:
+        date_col = cols[1] # 0-indexed이므로 2번째는 index 1
+
     if not bt_col or not prep_col:
         raise ValueError(f"'혈액형' 및 '혈액명'(또는 제제명) 컬럼이 엑셀에 존재해야 합니다. 현재 컬럼: {cols}")
+    
+    # 대표 날짜 추출 (첫 행 기준)
+    record_date = datetime.now().date()
+    if date_col and not df.empty:
+        try:
+            val = df.iloc[0][date_col]
+            if isinstance(val, (pd.Timestamp, datetime)):
+                record_date = val.date()
+            else:
+                # 문자열 등인 경우 파싱 시도
+                record_date = pd.to_datetime(val).date()
+        except:
+            pass
     
     # 사전 정의된 매핑 딕셔너리
     PREP_MAPPING = {
@@ -104,5 +123,6 @@ def parse_excel_inventory(file_bytes: bytes) -> Dict[str, Any]:
     return {
         "items": items,
         "unmapped": list(unmapped_preps),
-        "total_rows_processed": len(mapped_rows)
+        "total_rows_processed": len(mapped_rows),
+        "record_date": record_date.strftime("%Y-%m-%d")
     }

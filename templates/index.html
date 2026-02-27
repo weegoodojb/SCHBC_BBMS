@@ -1150,11 +1150,14 @@
 
                 if (res.ok) {
                     const d = res.data;
-                    if (d.failed === 0) {
-                        showMsg('데이터가 안전하게 기록되었습니다', 'success');
-                    } else {
-                        showMsg(`⚠️ ${d.success}개 성공 / ${d.failed}개 실패`, 'error');
+                    let successMsg = d.failed === 0 ? '데이터가 안전하게 기록되었습니다' : `⚠️ ${d.success}개 성공 / ${d.failed}개 실패`;
+
+                    // 위험재고 알람 발생 시 메시지 추가
+                    if (d.danger_alerts && d.danger_alerts.length > 0) {
+                        successMsg += " | 📧 위험재고 알람 메일 발송 완료";
                     }
+
+                    showMsg(successMsg, 'success');
                     // 🚨 위험재고 감지 시 사유 입력 팝업
                     if (d.danger_alerts && d.danger_alerts.length > 0) {
                         for (const da of d.danger_alerts) {
@@ -1552,7 +1555,9 @@
                 const data = await res.json();
 
                 if (res.ok) {
-                    showMsg(`✅ 엑셀 통계업로드 완료: 파싱된 파일수 ${data.files_processed}건, 저장된 총 수량 ${data.total_qty_saved} units`, 'success');
+                    let msg = `✅ 엑셀 통계업로드 완료 (${data.date})`;
+                    msg += `: 파싱된 파일수 ${data.files_processed}건, 저장된 총 수량 ${data.total_qty_saved} units`;
+                    showMsg(msg, 'success');
                 } else {
                     showMsg(data.detail || '엑셀 업로드 실패', 'error');
                 }

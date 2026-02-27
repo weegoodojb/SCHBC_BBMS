@@ -311,19 +311,30 @@ async def upload_excel_inventory(files: List[UploadFile] = File(...), db: Sessio
     
     for file in files:
         if not file.filename.endswith((".xlsx", ".xls")):
-            continue # 확장자 안맞는 파일은 조용히 무시 (혹은 에러처리)
+            continue
             
         try:
             contents = await file.read()
-            # 엑셀 파싱 (기존 서비스 재활용 - 반환 포맷: {"items": [{"blood_type": "A", "preparation": "PRBC", "qty": 10, ...}], ...})
             result = parse_excel_inventory(contents)
+            
+            # 엑셀에서 추출한 날짜 사용
+            excel_date_str = result.get("record_date")
+            if not excel_date_str:
+                excel_date = datetime.now().date()
+            else:
+                excel_date = datetime.strptime(excel_date_str, "%Y-%m-%d").date()
+            
+            # 중복 체크: 해당 날짜의 입고 내역이 이미 있는지 확인
+            existing_count = db.query(InboundHistory).filter(InboundHistory.receive_date == excel_date).count()
+            if existing_count > 0:
+                raise ValueError(f"이미 {excel_date} 날짜의 입고 내역이 존재합니다. 중복 업로드를 방지하기 위해 처리를 중단합니다.")
+
             total_processed += 1
             
             for item in result["items"]:
-                # 매핑된(시스템에 존재하는) 제제명만 저장
                 if item["is_mapped"] and item["preparation"] in prep_map:
                     inbound_record = InboundHistory(
-                        receive_date=datetime.now().date(), # 실제론 엑셀 기준일을 뽑아야 하나, 현재 parse_excel_inventory는 집계만 하므로 업로드일 사용
+                        receive_date=excel_date,
                         blood_type=item["blood_type"],
                         prep_id=prep_map[item["preparation"]],
                         qty=item["qty"]
@@ -331,8 +342,10 @@ async def upload_excel_inventory(files: List[UploadFile] = File(...), db: Sessio
                     db.add(inbound_record)
                     total_saved += item["qty"]
                     
+        except ValueError as e:
+            db.rollback()
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
         except Exception as e:
-            # 여러 파일 중 하나가 실패하더라도 전체를 롤백할지, 스킵할지 결정
             db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -344,7 +357,8 @@ async def upload_excel_inventory(files: List[UploadFile] = File(...), db: Sessio
     return {
         "message": "입고 통계 저장 완료",
         "files_processed": total_processed,
-        "total_qty_saved": total_saved
+        "total_qty_saved": total_saved,
+        "date": excel_date.strftime("%Y-%m-%d") if total_processed > 0 else None
     }
 
 @router.get("/logs")
