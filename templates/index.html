@@ -1582,6 +1582,12 @@
 
                 loadSafetyTargets();
                 loadRbcFactors();
+                // 관리자에게만 알람 이메일 관리 섹션 표시
+                const emailSec = document.getElementById('emailConfigSection');
+                if (emailSec) {
+                    emailSec.style.display = currentUser.is_admin ? 'block' : 'none';
+                    if (currentUser.is_admin) loadAlertEmails();
+                }
             }
         }
 

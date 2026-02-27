@@ -66,30 +66,40 @@ def get_analytics_data(db: Session, start_date: str, end_date: str):
     # 기간 구하기
     # start부터 end까지 (+ today ~ end) 역산
     date_range = []
-    d = today
-    while d >= start:
-        date_range.append(d)
-        d -= timedelta(days=1)
-        
-    for d in date_range:
-        # 하루치 재고 스냅샷 저장 (해당 날짜의 종료시점 재고)
-        for (bt, pid), qty in iter_stock.items():
-            daily_stock_history.append({
-                'date': d.strftime('%Y-%m-%d'),
-                'blood_type': bt,
-                'prep_id': pid,
-                'qty': qty
-            })
+    # 기간 구하기
+    # Today부터 start까지 역산 진행
+    # 1. 현재 시점 재고 추가
+    for (bt, pid), qty in iter_stock.items():
+        daily_stock_history.append({
+            'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'blood_type': bt,
+            'prep_id': pid,
+            'qty': qty
+        })
+
+    # 2. 로그를 역순으로 훑으며 각 변경점(입력시점)마다 스냅샷 저장
+    if not df_logs.empty:
+        for _, row in df_logs.iterrows():
+            log_date = row['date']
+            # 대상 기간 이전의 로그면 종료
+            if log_date < start:
+                break
+                
+            # 해당 로그 발생 이전의 재고로 역산
+            key = (row['blood_type'], row['prep_id'])
+            if key in iter_stock:
+                iter_stock[key] -= row['delta']
+                if iter_stock[key] < 0:
+                    iter_stock[key] = 0
             
-        # d 일자에 발생한 로그의 델타를 빼서 (과거로 가니까) d-1 종가 산출
-        if not df_logs.empty:
-            day_logs = df_logs[df_logs['date'] == d]
-            for _, row in day_logs.iterrows():
-                key = (row['blood_type'], row['prep_id'])
-                if key in iter_stock:
-                    iter_stock[key] -= row['delta']
-                    if iter_stock[key] < 0:
-                        iter_stock[key] = 0
+            # 역산된 스냅샷(과거 시점 재고) 추가
+            for (bt, pid), qty in iter_stock.items():
+                daily_stock_history.append({
+                    'date': row['log_date'].strftime('%Y-%m-%d %H:%M'),
+                    'blood_type': bt,
+                    'prep_id': pid,
+                    'qty': qty
+                })
 
     df_stock = pd.DataFrame(daily_stock_history)
     # 기간 필터
