@@ -2,7 +2,7 @@
 Inventory API endpoints
 """
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.database.models import BloodMaster, Inventory, StockLog
@@ -21,6 +21,7 @@ from app.services.inventory_service import (
 )
 from app.services.alert_service import check_blood_type_rbc_alert, check_single_item_alert
 from app.services.email_service import EmailService
+from app.services.excel_service import parse_excel_inventory
 
 router = APIRouter(prefix="/api/inventory", tags=["Inventory"])
 
@@ -238,3 +239,25 @@ def bulk_save_inventory(request: BulkSaveRequest, db: Session = Depends(get_db))
         failed  = fail_count,
         results = results
     )
+
+@router.post("/upload")
+async def upload_excel_inventory(file: UploadFile = File(...)):
+    """
+    엑셀 파일을 업로드하여 혈액형/제제명 수량을 집계합니다.
+    (UI에서 미리보기 및 수동 맵핑 후 bulk-save로 최종 저장)
+    """
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="엑셀 파일(.xlsx, .xls)만 업로드 가능합니다."
+        )
+        
+    try:
+        contents = await file.read()
+        result = parse_excel_inventory(contents)
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"엑셀 파일 처리 중 오류: {str(e)}"
+        )

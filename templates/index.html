@@ -787,6 +787,21 @@
             <div style="font-size:13px;">처리 중...</div>
         </div>
 
+        <!-- 미매핑 엑셀 항목 연결 모달 -->
+        <div class="modal-overlay" id="mappingModal" style="z-index: 1001;">
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h2>🔗 혈액명 매핑</h2>
+                </div>
+                <div style="font-size:13px; margin-bottom:12px; color:#555;">
+                    엑셀 파일 내 식별할 수 없는 제제명이 있습니다.<br>
+                    시스템 표준 명칭으로 연결해주세요. (무시할 항목은 선택 안 함)
+                </div>
+                <div id="mappingList" style="margin-bottom: 12px; max-height: 250px; overflow-y: auto;"></div>
+                <button class="btn btn-primary" style="width:100%;" onclick="applyExcelMapping()">적용 및 화면 채우기</button>
+            </div>
+        </div>
+
         <!-- ── 매트릭스 테이블 (제제=행, 혈액형=열) ── -->
         <div class="grid-section">
             <table class="grid-table" id="gridTable">
@@ -825,6 +840,10 @@
                 <textarea id="remark" placeholder="입출고 사유, 특이사항 등 (선택사항)"></textarea>
             </div>
             <div class="button-group">
+                <input type="file" id="excelFileInput" accept=".xls,.xlsx" style="display:none;"
+                    onchange="handleExcelUpload(event)">
+                <button class="btn btn-secondary" onclick="document.getElementById('excelFileInput').click()"
+                    style="background:#28a745; color:#fff; border-color:#28a745;">Excel 덮어쓰기</button>
                 <button class="btn btn-secondary" onclick="clearQty()">수량 초기화</button>
                 <button class="btn btn-primary" onclick="submitForm()">재고 저장</button>
             </div>
@@ -1432,6 +1451,109 @@
         }
         function hideMsg() { document.getElementById('message').classList.remove('active'); }
         function showLoading(show) { document.getElementById('loading').classList.toggle('active', show); }
+
+        // ── 엑셀 업로드 로직 ───────────────────────────────────────────────────────
+        let pendingExcelData = null;
+
+        async function handleExcelUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            showLoading(true); hideMsg();
+            try {
+                const res = await fetch('/api/inventory/upload', {
+                    method: 'POST',
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    pendingExcelData = data;
+                    if (data.unmapped && data.unmapped.length > 0) {
+                        openMappingModal(data.unmapped);
+                    } else {
+                        applyExcelDataToGrid(data.items);
+                    }
+                } else {
+                    showMsg(data.detail || '엑셀 파싱 실패', 'error');
+                }
+            } catch (err) {
+                showMsg('업로드 중 오류 발생: ' + err.message, 'error');
+            }
+            showLoading(false);
+            e.target.value = ''; // 동일 파일 재업로드 지원
+        }
+
+        function openMappingModal(unmapped) {
+            const container = document.getElementById('mappingList');
+            container.innerHTML = '';
+
+            const allPreps = [...BASE_PREPS, ...customPreps].map(p => p.name);
+            let optionsHtml = '<option value="">(무시하고 스킵)</option>';
+            allPreps.forEach(p => optionsHtml += `<option value="${p}">${p}</option>`);
+
+            unmapped.forEach((um, idx) => {
+                container.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:6px; background:#f4f4f4; border-radius:4px;">
+                        <span style="font-weight:600; font-size:12px; word-break:break-all;">${um}</span>
+                        <select id="mapSel_${idx}" data-raw="${um}" style="padding:4px; font-size:12px; border-radius:4px;">
+                            ${optionsHtml}
+                        </select>
+                    </div>
+                `;
+            });
+            document.getElementById('mappingModal').classList.add('active');
+        }
+
+        function applyExcelMapping() {
+            if (!pendingExcelData) return;
+            const container = document.getElementById('mappingList');
+            const selects = container.querySelectorAll('select');
+
+            const mappingDict = {};
+            selects.forEach(sel => {
+                if (sel.value) mappingDict[sel.getAttribute('data-raw')] = sel.value;
+            });
+
+            // 매핑 적용
+            pendingExcelData.items.forEach(item => {
+                if (!item.is_mapped && mappingDict[item.preparation]) {
+                    item.preparation = mappingDict[item.preparation];
+                    item.is_mapped = true;
+                }
+            });
+
+            document.getElementById('mappingModal').classList.remove('active');
+            applyExcelDataToGrid(pendingExcelData.items);
+        }
+
+        function applyExcelDataToGrid(items) {
+            // 미매핑 여부와 무관하게 is_mapped == true 인 것들만 필터 (또는 일치하는 ID가 있는것만 적용)
+            let applyCount = 0;
+
+            // 기존 폼 입력 내용 Clear (선택 사항)
+            clearQty();
+
+            items.forEach(item => {
+                if (!item.is_mapped) return;
+                // 매핑된 preparation 이름과 원래의 blood_type
+                const cell = document.getElementById(cellId(item.blood_type, item.preparation));
+                if (cell) {
+                    // 같은 cell이면 값을 합산 (안전장치)
+                    const val = parseInt(cell.value) || 0;
+                    cell.value = val + item.qty;
+                    applyCount++;
+                    // 실시간 신청량 계산 트리거
+                    onQtyInput(item.blood_type, item.preparation, cell.value);
+                }
+            });
+
+            showMsg(`엑셀 데이터 ${applyCount}건이 연결되었습니다. [재고 저장]을 눌러 완료하세요.`, 'success');
+        }
 
         // ── 초기화 ───────────────────────────────────────────────────────────────
         buildHeader();
