@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
 
-from app.api import auth, inventory, config, users
+from app.api import auth, inventory, config, users, analytics
 from app.api import admin as admin_api
 from app.api import alert_email as alert_email_api
 from app.core.config import settings
@@ -65,8 +65,6 @@ app.add_middleware(
 
 # Static files (CSS, JS, images 등 향후 사용)
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-from app.api import auth, inventory, config, users, analytics
 
 # API 라우터
 app.include_router(auth.router)
