@@ -1,5 +1,11 @@
 # SCHBC BBMS 프로젝트 로그
 
+## 2026-02-27: Phase 5 (Bug Fixes, Inbound Charts, User Management UI) 완료
+
+- **Phase 5.1 (Auth Persistence)**: 토큰을 메모리에만 보관하여 발생하던 네비게이션 간 세션 소실(로그아웃) 버그를 `localStorage` 연동으로 수정하여 브라우저 리로드 시에도 로그인이 유지되도록 조치.
+- **Phase 5.2 (Inbound Charts)**: `InboundHistory` (엑셀 통계업로드) 데이터를 불러와 대시보드 하단에 RBC (PRBC + Pre-R) 및 FFP 제제 전용 수량 차트를 새로 렌더링하도록 `analytics_service.py`와 `analytics.html` 수정.
+- **Phase 5.3 (Admin UI)**: UI 상에서 숨겨져 있던 `사용자 관리 (등록/권한)` 모달 버튼의 가시성을 복구하여, 관리자(`is_admin=1`)가 사용자 등록, 비밀번호 초기화, 권한(일반/관리자) 변경, 계정 삭제 등을 한 번에 수행할 수 있도록 조치.
+
 ## 2026-02-27: Phase 4 (입고 및 통계 강화) 구현 완료
 
 - **Phase 4.1**: `models.py`에 `InboundHistory` (통계 전용 엑셀 입고내역) 테이블 생성 및 `main.py` lifespan에서 자동 테이블 마이그레이션 적용.
