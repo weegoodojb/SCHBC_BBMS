@@ -204,10 +204,26 @@ def get_analytics_data(db: Session, start_date: str, end_date: str):
     
     df_inbound = pd.DataFrame(inbounds)
     if not df_inbound.empty:
-        # date object to string to match 'dates'
         df_inbound['date'] = df_inbound['date'].apply(lambda x: x.strftime('%Y-%m-%d'))
     else:
         df_inbound = pd.DataFrame(columns=['date', 'blood_type', 'prep_id', 'qty'])
+
+    # 입고 데이터 전용 날짜 목록 생성 (StockLog dates와 독립적)
+    d_iter = start
+    inbound_dates = []
+    while d_iter <= end:
+        inbound_dates.append(d_iter.strftime('%Y-%m-%d'))
+        d_iter += timedelta(days=1)
+
+    def make_inbound_chart_data(df_group):
+        """입고 전용 차트 데이터: inbound_dates 기준으로 시리즈 생성"""
+        series = {'A': [], 'B': [], 'O': [], 'AB': []}
+        for d in inbound_dates:
+            day_data = df_group[df_group['date'] == d] if not df_group.empty else pd.DataFrame()
+            for bt in ['A', 'B', 'O', 'AB']:
+                qty = int(day_data[day_data['blood_type'] == bt]['qty'].sum()) if not day_data.empty else 0
+                series[bt].append(qty)
+        return {'dates': inbound_dates, 'series': series}
 
     df_inbound_rbc = df_inbound[df_inbound['prep_id'].isin(rbc_preps)]
     if not df_inbound_rbc.empty:
@@ -217,8 +233,8 @@ def get_analytics_data(db: Session, start_date: str, end_date: str):
     if not df_inbound_ffp.empty:
         df_inbound_ffp = df_inbound_ffp.groupby(['date', 'blood_type'])['qty'].sum().reset_index()
 
-    chart_inbound_rbc = make_chart_data(df_inbound_rbc)
-    chart_inbound_ffp = make_chart_data(df_inbound_ffp)
+    chart_inbound_rbc = make_inbound_chart_data(df_inbound_rbc)
+    chart_inbound_ffp = make_inbound_chart_data(df_inbound_ffp)
 
     return {
         "summary": {

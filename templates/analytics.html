@@ -425,6 +425,22 @@
                 };
             });
 
+            // 재고비 모드일 때 3.5 기준선 추가
+            if (currentRbcView === 'ratio') {
+                const centerLen = globalRbcData.dates.length;
+                datasets.push({
+                    label: '📍 목표재고비 (SF=3.5)',
+                    data: Array(centerLen).fill(3.5),
+                    borderColor: 'rgba(220, 53, 69, 0.9)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.5,
+                    borderDash: [8, 4],
+                    pointRadius: 0,
+                    tension: 0,
+                    order: -1
+                });
+            }
+
             if (rbcChartIns) rbcChartIns.destroy();
             rbcChartIns = new Chart(ctx, {
                 type: 'line',
@@ -438,11 +454,20 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            title: { display: true, text: yAxisLabel }
+                            title: { display: true, text: yAxisLabel },
+                            ...(currentRbcView === 'ratio' ? {
+                                suggestedMin: 0,
+                                suggestedMax: 7
+                            } : {})
                         }
                     },
                     plugins: {
-                        tooltip: { mode: 'index', intersect: false }
+                        tooltip: { mode: 'index', intersect: false },
+                        legend: {
+                            labels: {
+                                filter: (legendItem) => true
+                            }
+                        }
                     }
                 }
             });
