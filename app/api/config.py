@@ -200,6 +200,8 @@ def update_rbc_factors(update: RBCFactorsUpdate, db: Session = Depends(get_db)):
     # PRBC(1), Prefiltered(2)에 대한 target 분배 (Legacy ratio 기능 사용)
     from app.services.inventory_service import get_rbc_ratio
     ratio = get_rbc_ratio(db)
+    
+    # 올바른 분배: 총합(target)을 PRBC와 Pre-R로 분배. 기본값이 0.5(50%)임.
     prbc_target = round(target * ratio)
     prefiltered_target = target - prbc_target
 
