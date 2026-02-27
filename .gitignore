@@ -1,67 +1,35 @@
-# .gitignore for SCHBC BBMS
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual Environment
 venv/
-ENV/
+.venv/
 env/
-
-# Environment Variables
 .env
-.env.local
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
+# Secrets
+.env
+.env.*
+! .env.example
 
-# IDE
+# IDEs
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
+# Database
+*.db
+*.sqlite3
+
 # Logs
+logs/
 *.log
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Temporary files
-*.tmp
-temp/
-tmp/
-
-# Railway
-.railway/
-
-# Supabase local
-.supabase/
+# App specific
+temp_*/
+uploads/
+*.xlsx
+!sample_*.xlsx

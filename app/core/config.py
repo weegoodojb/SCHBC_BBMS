@@ -5,28 +5,36 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Application settings"""
+    """Application settings loaded from environment variables"""
     
     # Application
     APP_NAME: str = "SCHBC BBMS"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = False  # Changed to False for production
+    DEBUG: bool = False
     
     # Database - Supabase (PostgreSQL)
-    # Default connection string, can be overridden by environment variable
-    DATABASE_URL: str = "postgresql://postgres.gzqtyjwoasbbgelylkix:rkP4z7EfunMSIMXC@aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres"
+    DATABASE_URL: str
     
-    # Supabase (optional - for direct API access)
-    SUPABASE_URL: str = "https://gzqtyjwoasbbgelylkix.supabase.co"
-    SUPABASE_KEY: str = "sb_publishable_XypkjPMQoR9JR8Vv_bumEw_NC_MrCTn"
+    # Supabase (optional)
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
     
     # Security
-    SECRET_KEY: str = "your-secret-key-change-in-production-min-32-chars-long"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     
-    class Config:
-        env_file = ".env"
+    # SMTP Settings (Gmail)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str
+    SMTP_PASSWORD: str
+    
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": True
+    }
 
 
 settings = Settings()

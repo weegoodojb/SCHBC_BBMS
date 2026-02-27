@@ -1,18 +1,11 @@
-"""
-Email Service - Gmail SMTP 기반 위험재고 알람 발송
-"""
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import List
 import logging
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
-
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_USER = "goodojb@gmail.com"
-SMTP_PASSWORD = "wrniltvhylhmolbs"
 
 
 def send_danger_alert(blood_type: str, rbc_qty: int, actual_ratio: float, danger_threshold: float, recipients: List[str]):
@@ -43,16 +36,16 @@ def send_danger_alert(blood_type: str, rbc_qty: int, actual_ratio: float, danger
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = SMTP_USER
+        msg["From"] = settings.SMTP_USER
         msg["To"] = ", ".join(recipients)
 
         msg.attach(MIMEText(body, "html", "utf-8"))
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
             server.ehlo()
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_USER, recipients, msg.as_string())
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_USER, recipients, msg.as_string())
 
         logger.info(f"위험재고 알람 발송 완료: {blood_type}형 → {recipients}")
     except Exception as e:
