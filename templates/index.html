@@ -753,6 +753,9 @@
             inputRow.innerHTML =
                 `<td class="prep-cell${isCustom ? ' custom-row' : ''}">${prepName}</td>` +
                 BLOOD_TYPES.map(bt => {
+                    if (prepName === 'Cryo' && bt !== 'AB') {
+                        return `<td class="qty-cell" style="background: #fafafa;"></td>`;
+                    }
                     const id = cellId(bt, prepName);
                     return `
           <td class="qty-cell">
@@ -863,10 +866,10 @@
                     document.getElementById('loginSection').classList.remove('active');
                     document.getElementById('userInfo').classList.add('active');
                     document.getElementById('userName').textContent = res.data.name + ' 님';
-                    showMsg('로그인 성공! 최근 재고를 불러오는 중...', 'success');
-                    // 로그인 후 최근 재고 + 신청량 동시 로드
-                    await Promise.all([loadInventory(), loadSafetyTargets()]);
-                    showMsg('로그인 성공 — 최근 재고가 반영되었습니다', 'success');
+                    showMsg('로그인 성공! 기준 정보를 불러오는 중...', 'success');
+                    // 로그인 후 적정재고 기준만 로드 (최근 재고는 불러오지 않음)
+                    await loadSafetyTargets();
+                    showMsg('로그인 성공', 'success');
                 } else {
                     showMsg('로그인 실패: ' + (res.data.detail || '인증 오류'), 'error');
                 }
