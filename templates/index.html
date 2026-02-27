@@ -963,7 +963,7 @@
                 if (res.ok) {
                     const d = res.data;
                     if (d.failed === 0) {
-                        showMsg(`✅ ${d.success}개 저장 완료 (입력값 유지)`, 'success');
+                        showMsg('데이터가 안전하게 기록되었습니다', 'success');
                     } else {
                         showMsg(`⚠️ ${d.success}개 성공 / ${d.failed}개 실패`, 'error');
                     }
