@@ -234,11 +234,69 @@ def bulk_save_inventory(request: BulkSaveRequest, db: Session = Depends(get_db))
             detail=f"DB 커밋 실패: {str(e)}"
         )
 
+    # ── 위험재고 체크 (RBC 전용) ──────────────────────────────────────────────────
+    from app.database.models import MasterConfig, AlertEmail
+    from app.services.email_service import send_danger_alert
+    import threading
+
+    danger_alerts = []  # 프론트에 반환할 위험재고 목록
+
+    try:
+        # RBC 계열 BloodMaster ID 조회
+        rbc_preps = db.query(BloodMaster).filter(
+            BloodMaster.preparation.in_(["PRBC", "Pre-R", "Prefiltered"])
+        ).all()
+        rbc_prep_ids = [p.id for p in rbc_preps]
+
+        # 각 혈액형별 RBC 합산 재고 조회
+        for blood_type in ['A', 'B', 'O', 'AB']:
+            total_rbc = db.query(Inventory).filter(
+                Inventory.blood_type == blood_type,
+                Inventory.prep_id.in_(rbc_prep_ids)
+            ).all()
+            qty_sum = sum(i.current_qty for i in total_rbc)
+
+            # MasterConfig에서 danger_factor, dcr 조회
+            mc = db.query(MasterConfig).filter(
+                MasterConfig.blood_type == blood_type,
+                MasterConfig.config_key == 'rbc_factors'
+            ).first()
+
+            if mc and mc.danger_factor and mc.daily_consumption_rate and mc.daily_consumption_rate > 0:
+                dcr = mc.daily_consumption_rate
+                df = mc.danger_factor
+                actual_ratio = round(qty_sum / dcr, 2)
+                danger_threshold_qty = dcr * df
+
+                if qty_sum < danger_threshold_qty:
+                    danger_alerts.append({
+                        "blood_type": blood_type,
+                        "rbc_qty": qty_sum,
+                        "actual_ratio": actual_ratio,
+                        "danger_threshold": df,
+                        "danger_threshold_qty": round(danger_threshold_qty, 1)
+                    })
+
+        # 위험재고가 있으면 이메일 발송 (백그라운드)
+        if danger_alerts:
+            recipients = [e.email for e in db.query(AlertEmail).filter(AlertEmail.is_active == True).all()]
+            if recipients:
+                for da in danger_alerts:
+                    t = threading.Thread(
+                        target=send_danger_alert,
+                        args=(da["blood_type"], da["rbc_qty"], da["actual_ratio"], da["danger_threshold"], recipients),
+                        daemon=True
+                    )
+                    t.start()
+    except Exception as e:
+        pass  # 이메일 오류가 재고 저장 성공을 막으면 안됨
+
     return BulkSaveResponse(
         total   = len(request.items),
         success = success_count,
         failed  = fail_count,
-        results = results
+        results = results,
+        danger_alerts = danger_alerts
     )
 
 from typing import List

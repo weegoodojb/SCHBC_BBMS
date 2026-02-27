@@ -32,6 +32,7 @@ class RBCFactorsResponse(BaseModel):
     prep_id: Optional[int] = Field(None, description="제제 ID (None=공통)")
     daily_consumption_rate: float = Field(..., description="1일 재고비")
     safety_factor: float = Field(..., description="적정재고비 (배수)")
+    danger_factor: Optional[float] = Field(None, description="위험재고비 (배수)")
     updated_at: Optional[datetime]
 
     class Config:
@@ -42,7 +43,8 @@ class RBCFactorsUpdate(BaseModel):
     """RBC 재고비 수정 요청 - 개별 혈액형 적용"""
     daily_consumption_rate: float = Field(..., ge=0.1, le=30.0, description="1일 재고비")
     safety_factor: float = Field(..., ge=0.5, le=10.0, description="적정재고비 배수")
-    change_reason: str = Field("", description="변경 사유 (SF 변경시 5자 이상 필수, 프론트 검증)")
+    danger_factor: Optional[float] = Field(None, ge=0.1, le=10.0, description="위험재고비 배수")
+    change_reason: str = Field("", description="변경 사유")
     blood_type: str = Field(..., description="특정 혈액형 (필수)")
     prep_id: Optional[int] = Field(None, description="특정 제제 ID")
     changed_by: Optional[str] = Field(None, description="변경자 사번")
@@ -119,6 +121,7 @@ def get_rbc_factors(db: Session = Depends(get_db)):
             prep_id=c.prep_id,
             daily_consumption_rate=c.daily_consumption_rate or 3.0,
             safety_factor=c.safety_factor or 2.0,
+            danger_factor=c.danger_factor,
             updated_at=c.updated_at
         ))
 
@@ -158,6 +161,8 @@ def update_rbc_factors(update: RBCFactorsUpdate, db: Session = Depends(get_db)):
     if existing:
         existing.daily_consumption_rate = update.daily_consumption_rate
         existing.safety_factor = update.safety_factor
+        if update.danger_factor is not None:
+            existing.danger_factor = update.danger_factor
         existing.updated_at = datetime.now()
     else:
         new_config = MasterConfig(
@@ -166,7 +171,8 @@ def update_rbc_factors(update: RBCFactorsUpdate, db: Session = Depends(get_db)):
             config_key='rbc_factors',
             config_value=f"dcr={update.daily_consumption_rate},sf={update.safety_factor}",
             daily_consumption_rate=update.daily_consumption_rate,
-            safety_factor=update.safety_factor
+            safety_factor=update.safety_factor,
+            danger_factor=update.danger_factor
         )
         db.add(new_config)
 

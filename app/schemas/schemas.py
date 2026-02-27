@@ -137,6 +137,7 @@ class BulkSaveResponse(BaseModel):
     success:  int = Field(..., description="성공 항목 수")
     failed:   int = Field(..., description="실패 항목 수")
     results:  list[BulkSaveResult]
+    danger_alerts: list = Field(default=[], description="위험재고 발생 혈액형 목록")
 
 
 # ============= Common Schemas =============

@@ -853,7 +853,23 @@
                 전체(A, B, O, AB) 재고비 동시 저장</button>
 
             <p class="admin-hint">💡 적정재고 = ceil(DCR × SF) | O형 RBC: +4<br>
-                ※ 1일 재고(DCR)는 관리자만 수정 가능. 적정재고비(SF)는 누구나 수정 가능.</p>
+                ※ 1일 재고(DCR)는 관리자만 수정 가능. 위험재고비(DF) 미만 시 알람 발송.</p>
+        </div>
+    </div>
+
+    <!-- 위험재고 알람 이메일 관리 패널 -->
+    <div id="emailConfigSection" class="admin-section" style="display:none;">
+        <div class="admin-panel" style="border:1.5px solid #f5a5a5; background:#fff8f8;">
+            <div class="admin-header" style="color:#dc3545;">🚨 위험재고 알람 이메일 관리</div>
+            <p style="font-size:12px; color:#666; margin:0 0 10px;">RBC 재고가 위험재고비(DF) 미만 시 아래 등록된 이메일로 자동 발송됩니다.</p>
+            <div id="emailListContainer" style="margin-bottom:10px;"></div>
+            <div style="display:flex; gap:8px;">
+                <input type="email" id="newAlertEmail" placeholder="이메일 주소 입력"
+                    style="flex:1; padding:6px 10px; border:1px solid #f5a5a5; border-radius:4px; font-size:13px;">
+                <button onclick="addAlertEmail()"
+                    style="background:#dc3545; color:#fff; border:none; border-radius:4px; padding:6px 14px; font-size:13px; cursor:pointer; font-weight:bold;">+
+                    추가</button>
+            </div>
         </div>
     </div>
 
@@ -1029,6 +1045,12 @@
                     // 로그인 후 적정재고 기준만 로드 (최근 재고는 불러오지 않음)
                     await loadSafetyTargets();
                     await loadRbcFactors();
+                    // 관리자에게만 알람 이메일 관리 섹션 표시
+                    const emailSec = document.getElementById('emailConfigSection');
+                    if (emailSec) {
+                        emailSec.style.display = res.data.is_admin ? 'block' : 'none';
+                        if (res.data.is_admin) loadAlertEmails();
+                    }
                     showMsg('로그인 성공', 'success');
                 } else {
                     showMsg('로그인 실패: ' + (res.data.detail || '인증 오류'), 'error');
@@ -1134,6 +1156,26 @@
                     } else {
                         showMsg(`⚠️ ${d.success}개 성공 / ${d.failed}개 실패`, 'error');
                     }
+                    // 🚨 위험재고 감지 시 사유 입력 팝업
+                    if (d.danger_alerts && d.danger_alerts.length > 0) {
+                        for (const da of d.danger_alerts) {
+                            const msg = `🚨 [위험재고 경보]\n\n` +
+                                `혈액형: ${da.blood_type}형 RBC\n` +
+                                `현재재고: ${da.rbc_qty} Unit\n` +
+                                `현재재고비: ${da.actual_ratio} (위험기준: ${da.danger_threshold})\n\n` +
+                                `위험재고 발생 사유를 입력하세요:`;
+                            const reason = prompt(msg);
+                            // 취소해도 기록 (reason=null → '사유미입력')
+                            await api('POST', '/api/danger-alerts/', {
+                                blood_type: da.blood_type,
+                                rbc_qty: da.rbc_qty,
+                                danger_threshold: da.danger_threshold,
+                                actual_ratio: da.actual_ratio,
+                                reason: reason || '(사유 미입력)',
+                                user_id: currentUser?.user_id || null
+                            });
+                        }
+                    }
                 } else {
                     showMsg('저장 실패: ' + (res.data.detail || '서버 오류'), 'error');
                 }
@@ -1235,7 +1277,7 @@
                         // 정확히 매칭되거나 공통 fallback
                         const exact = data.find(c => c.blood_type === bt && c.prep_id === null);
                         const common = data.find(c => c.blood_type === null && c.prep_id === null);
-                        const fallback = { daily_consumption_rate: 3.0, safety_factor: 2.0 };
+                        const fallback = { daily_consumption_rate: 3.0, safety_factor: 2.0, danger_factor: null };
                         const conf = exact || common || fallback;
 
                         originalSF[bt] = conf.safety_factor;
@@ -1260,6 +1302,10 @@
                             <div style="flex:1;">
                                 <label style="font-size:10px; color:#555; display:block; margin-bottom:2px;">적정재고비(SF)</label>
                                 <input type="number" id="sf_${bt}" value="${conf.safety_factor}" step="0.1" min="0.5" max="10" inputmode="decimal" style="width:100%; padding:4px 6px; font-size:12px; border:1px solid #ccc; border-radius:4px;">
+                            </div>
+                            <div style="flex:1;">
+                                <label style="font-size:10px; color:#dc3545; display:block; margin-bottom:2px;">⚠️ 위험재고비(DF)</label>
+                                <input type="number" id="df_${bt}" value="${conf.danger_factor ?? ''}" step="0.1" min="0.1" max="10" inputmode="decimal" placeholder="예: 2.0" style="width:100%; padding:4px 6px; font-size:12px; border:1px solid #f5a5a5; border-radius:4px; background:#fff8f8;">
                             </div>
                         </div>
                         `;
@@ -1302,6 +1348,7 @@
                 payloads.push({
                     daily_consumption_rate: dcr,
                     safety_factor: sf,
+                    danger_factor: isNaN(parseFloat(document.getElementById('df_' + bt)?.value)) ? null : parseFloat(document.getElementById('df_' + bt).value),
                     change_reason: finalReason,
                     blood_type: bt,
                     changed_by: currentUser.emp_id
@@ -1326,6 +1373,40 @@
                 showMsg('서버 오류: ' + err.message, 'error');
             }
             showLoading(false);
+        }
+
+        // ── 알람 이메일 관리 ──────────────────────────────────────────────────────
+        async function loadAlertEmails() {
+            const cont = document.getElementById('emailListContainer');
+            if (!cont) return;
+            try {
+                const res = await api('GET', '/api/alert-emails/');
+                if (!res.ok || !res.data.length) {
+                    cont.innerHTML = '<div style="color:#888; font-size:12px;">등록된 이메일이 없습니다</div>';
+                    return;
+                }
+                cont.innerHTML = res.data.map(e =>
+                    `<div style="display:flex; justify-content:space-between; align-items:center; padding:4px 8px; background:#fff; border:1px solid #ddd; border-radius:4px; margin-bottom:4px;">
+                        <span style="font-size:12px;">${e.email}</span>
+                        <button onclick="deleteAlertEmail(${e.id})" style="background:#dc3545; color:#fff; border:none; border-radius:3px; padding:2px 8px; cursor:pointer; font-size:11px;">삭제</button>
+                    </div>`
+                ).join('');
+            } catch (e) { cont.innerHTML = '<div style="color:red; font-size:12px;">오류</div>'; }
+        }
+
+        async function addAlertEmail() {
+            const inp = document.getElementById('newAlertEmail');
+            if (!inp || !inp.value.trim()) { showMsg('이메일을 입력하세요', 'error'); return; }
+            const res = await api('POST', '/api/alert-emails/', { email: inp.value.trim() });
+            if (res.ok) { inp.value = ''; loadAlertEmails(); showMsg('이메일 등록 완료', 'success'); }
+            else showMsg(res.data.detail || '등록 실패', 'error');
+        }
+
+        async function deleteAlertEmail(id) {
+            if (!confirm('이 이메일을 삭제하시겠습니까?')) return;
+            const res = await api('DELETE', `/api/alert-emails/${id}`);
+            if (res.ok) { loadAlertEmails(); showMsg('삭제 완료', 'success'); }
+            else showMsg(res.data.detail || '삭제 실패', 'error');
         }
 
         // ── 사용자 관리 모달 로직 ──────────────────────────────────────────────────

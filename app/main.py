@@ -11,6 +11,7 @@ import logging
 
 from app.api import auth, inventory, config, users
 from app.api import admin as admin_api
+from app.api import alert_email as alert_email_api
 from app.core.config import settings
 from app.database.database import test_connection
 
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI):
             db.execute(text("ALTER TABLE stock_log ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id);"))
             db.execute(text("ALTER TABLE stock_log ADD COLUMN IF NOT EXISTS expiry_ok BOOLEAN DEFAULT TRUE;"))
             db.execute(text("ALTER TABLE stock_log ADD COLUMN IF NOT EXISTS visual_ok BOOLEAN DEFAULT TRUE;"))
+            db.execute(text("ALTER TABLE master_config ADD COLUMN IF NOT EXISTS danger_factor FLOAT;"))
             db.commit()
             db.close()
             logger.info("✅ DB 스키마 마이그레이션 확인 (stock_log 확장 필드 및 신규 테이블 확인)")
@@ -73,6 +75,7 @@ app.include_router(config.router, prefix="/api/config", tags=["Configuration"])
 app.include_router(users.router)
 app.include_router(analytics.router)
 app.include_router(admin_api.router)
+app.include_router(alert_email_api.router, tags=["Alert Emails"])
 
 
 @app.get("/", response_class=HTMLResponse)

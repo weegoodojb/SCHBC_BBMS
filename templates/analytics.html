@@ -296,42 +296,21 @@
         </section>
 
         <section class="alert-section" style="margin-bottom: 24px;">
-            <h2>⚠️ 목표재고량 미달 발생 알람 히스토리 (RBC)</h2>
-            <div style="max-height: 300px; overflow-y: auto;">
-                <table class="alert-table" id="alertTable">
+            <h2>🚨 위험재고 알람 기록 (RBC 전용)</h2>
+            <div style="max-height: 350px; overflow-y: auto;">
+                <table class="alert-table" id="dangerAlertTable">
                     <thead>
                         <tr>
-                            <th>발생일자</th>
+                            <th>발생일시</th>
                             <th>혈액형</th>
-                            <th>구분</th>
-                            <th>당시 재고량</th>
-                            <th>목표 재고량</th>
-                            <th>사유</th>
+                            <th>RBC 재고량</th>
+                            <th>실제 재고비</th>
+                            <th>위험재고비 기준</th>
+                            <th>발생 사유</th>
+                            <th>기록자</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- JS injected -->
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <section class="alert-section">
-            <h2 style="color: #4a5568;">📝 최근 재고 실사 및 수정 기록 (Audit Log)</h2>
-            <div style="max-height: 300px; overflow-y: auto;">
-                <table class="alert-table" id="auditTable">
-                    <thead>
-                        <tr>
-                            <th>일시</th>
-                            <th>사용자(작업자)</th>
-                            <th>혈액형</th>
-                            <th>제제명</th>
-                            <th>변동량</th>
-                            <th>적합 판정</th>
-                            <th>비고(사유)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                    <tbody id="dangerAlertBody">
                         <!-- JS injected -->
                     </tbody>
                 </table>
@@ -380,7 +359,6 @@
                 globalRbcData = data.chart_rbc; // 원본 보존
                 renderRbcChart();
                 renderChart('ffpChart', ffpChartIns, data.chart_ffp, 'FFP (신선동결혈장) 재고', false);
-                renderAlerts(data.alerts);
 
             } catch (e) {
                 console.error(e);
@@ -516,68 +494,37 @@
             if (canvasId === 'ffpInboundChart') ffpInboundChartIns = newChart;
         }
 
-        function renderAlerts(alerts) {
-            const tbody = document.querySelector('#alertTable tbody');
-            tbody.innerHTML = '';
-
-            if (!alerts || alerts.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">해당 기간 내 알람 내역이 없습니다. (훌륭합니다!)</td></tr>';
-                return;
-            }
-
-            alerts.forEach(a => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${a.date}</td>
-                    <td><strong>${a.blood_type}</strong></td>
-                    <td>${a.component}</td>
-                    <td class="text-error">${a.qty}</td>
-                    <td>${a.target}</td>
-                    <td style="color:#d32f2f;">${a.reason}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        async function fetchAuditLogs() {
+        async function loadDangerAlerts() {
             try {
-                const res = await fetch('/api/inventory/logs?limit=100');
-                if (!res.ok) throw new Error('실사 기록을 불러오는데 실패했습니다.');
+                const res = await fetch('/api/danger-alerts/?limit=100');
+                if (!res.ok) throw new Error('위험재고 알람을 불러오는데 실패했습니다.');
                 const logs = await res.json();
 
-                const tbody = document.querySelector('#auditTable tbody');
+                const tbody = document.getElementById('dangerAlertBody');
                 tbody.innerHTML = '';
 
                 if (!logs || logs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">재고 변경 기록이 없습니다.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">위험재고 알람 기록이 없습니다. 🎉</td></tr>';
                     return;
                 }
 
                 logs.forEach(log => {
                     const tr = document.createElement('tr');
-
-                    // 변동량 색상 (양수면 파란색, 음수면 빨간색)
-                    let deltaStr = log.delta > 0 ? `+${log.delta}` : log.delta;
-                    let deltaColor = log.delta > 0 ? '#0d47a1' : (log.delta < 0 ? '#d32f2f' : '#555');
-
-                    // 적합 판정 (유효기간, 육안)
-                    let checkStr = (log.expiry_ok && log.visual_ok)
-                        ? '<span style="color:#2e7d32; font-weight:600;">적합</span>'
-                        : '<span style="color:#d32f2f; font-weight:600;">부적합 포함</span>';
-
                     tr.innerHTML = `
-                        <td>${log.log_date}</td>
-                        <td>${log.user_name}</td>
-                        <td><strong>${log.blood_type}</strong></td>
-                        <td>${log.preparation}</td>
-                        <td style="color:${deltaColor}; font-weight:bold;">${deltaStr}</td>
-                        <td>${checkStr}</td>
-                        <td style="color:#666;">${log.remark}</td>
+                        <td>${log.alert_date}</td>
+                        <td><strong style="color:#dc3545;">${log.blood_type}형</strong></td>
+                        <td class="text-error">${log.rbc_qty} Unit</td>
+                        <td style="color:#dc3545; font-weight:bold;">${log.actual_ratio !== null ? log.actual_ratio.toFixed(2) : '-'}</td>
+                        <td>${log.danger_threshold !== null ? log.danger_threshold.toFixed(2) : '-'}</td>
+                        <td style="color:#666;">${log.reason || '-'}</td>
+                        <td style="color:#888;">${log.user_name || '-'}</td>
                     `;
                     tbody.appendChild(tr);
                 });
             } catch (e) {
                 console.error(e);
+                const tbody = document.getElementById('dangerAlertBody');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">불러오기 실패</td></tr>';
             }
         }
 
@@ -585,7 +532,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             setDateDefaults();
             fetchAnalytics();
-            fetchAuditLogs();
+            loadDangerAlerts();
         });
     </script>
 </body>

@@ -31,6 +31,7 @@ class MasterConfig(Base):
     config_value = Column(String(255), nullable=False, comment='설정 값 (문자열로 저장)')
     daily_consumption_rate = Column(Float, nullable=True, comment='1일 재고비 (소수점 1자리)')
     safety_factor = Column(Float, nullable=True, comment='적정재고비 (배수)')
+    danger_factor = Column(Float, nullable=True, comment='위험재고비 (배수) - 미만 시 알람')
     description = Column(Text, comment='설명')
     created_at = Column(DateTime, default=datetime.now, comment='생성일시')
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment='수정일시')
@@ -210,3 +211,36 @@ class SystemSettings(Base):
 
     def __repr__(self):
         return f"<SystemSettings(key='{self.key}', value='{self.value}')>"
+
+
+# ==================== Alert Emails ====================
+
+class AlertEmail(Base):
+    """위험재고 알람 수신 이메일 목록"""
+    __tablename__ = 'alert_emails'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, nullable=False, comment='알람 수신 이메일')
+    is_active = Column(Boolean, default=True, comment='활성화 여부')
+    created_at = Column(DateTime, default=datetime.now, comment='등록일시')
+
+    def __repr__(self):
+        return f"<AlertEmail(email='{self.email}')>"
+
+
+class DangerAlertLog(Base):
+    """위험재고 알람 기록 테이블 (RBC 전용)"""
+    __tablename__ = 'danger_alert_log'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    alert_date = Column(DateTime, nullable=False, default=datetime.now, comment='알람 발생일시')
+    blood_type = Column(String(5), nullable=False, comment='혈액형')
+    rbc_qty = Column(Integer, nullable=False, comment='발생 시점 RBC 재고량')
+    danger_threshold = Column(Float, nullable=True, comment='위험재고비 기준값 (DCR x DF)')
+    actual_ratio = Column(Float, nullable=True, comment='실제 재고비 (qty / DCR)')
+    reason = Column(Text, nullable=True, comment='위험재고 발생 사유 (사용자 입력)')
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True, comment='기록자 ID')
+    created_at = Column(DateTime, default=datetime.now, comment='생성일시')
+
+    def __repr__(self):
+        return f"<DangerAlertLog({self.blood_type}, ratio={self.actual_ratio})>"

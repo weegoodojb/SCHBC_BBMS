@@ -1,73 +1,59 @@
 """
-이메일 알림 서비스
+Email Service - Gmail SMTP 기반 위험재고 알람 발송
 """
-from datetime import datetime
-from typing import Dict, Optional
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import List
 import logging
 
 logger = logging.getLogger(__name__)
 
-class EmailService:
-    """이메일 알림 서비스 (GAS GmailApp 사용)"""
-    
-    @staticmethod
-    def format_alert_email(alert_data: Dict) -> Dict[str, str]:
-        """
-        알림 이메일 포맷 생성
-        
-        Args:
-            alert_data: 알림 데이터 (blood_type, current_qty, threshold 등)
-            
-        Returns:
-            subject, body를 포함한 딕셔너리
-        """
-        blood_type = alert_data.get('blood_type', 'Unknown')
-        current_qty = alert_data.get('current_qty', 0)
-        threshold = alert_data.get('threshold', 0)
-        prep_name = alert_data.get('preparation', 'RBC')
-        
-        subject = f"[SCHBC BBMS] {blood_type}형 {prep_name} 재고 부족 알림"
-        
-        body = f"""
-순천향대학교 부천병원 혈액은행 재고 알림
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_USER = "goodojb@gmail.com"
+SMTP_PASSWORD = "Joanne@0619"
 
-{blood_type}형 {prep_name} 재고가 알림 기준치 이하입니다.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 재고 현황
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def send_danger_alert(blood_type: str, rbc_qty: int, actual_ratio: float, danger_threshold: float, recipients: List[str]):
+    """
+    위험재고 발생 시 등록된 이메일 목록으로 알람 발송
+    """
+    if not recipients:
+        logger.warning("알람 수신 이메일이 등록되지 않아 발송을 생략합니다.")
+        return
 
-혈액형: {blood_type}
-제제명: {prep_name}
-현재 재고: {current_qty} 단위
-알림 기준: {threshold} 단위
-부족 수량: {threshold - current_qty} 단위
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⏰ 확인 정보
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-확인 시간: {datetime.now().strftime('%Y년 %m월 %d일 %H:%M:%S')}
-시스템: SCHBC BBMS v1.0
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ 즉시 재고 확보가 필요합니다.
-
-이 메일은 자동으로 발송되었습니다.
+    subject = f"🚨 [SCHBC BBMS] RBC {blood_type}형 위험재고 알람"
+    body = f"""
+<html>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+  <h2 style="color: #dc3545;">🚨 RBC 위험재고 알람</h2>
+  <p>RBC 재고량이 위험재고비 이하로 떨어졌습니다.</p>
+  <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;">
+    <tr><th style="background:#f8f9fa;">혈액형</th><td><strong>{blood_type}형</strong></td></tr>
+    <tr><th style="background:#f8f9fa;">현재 RBC 재고량</th><td>{rbc_qty} Unit</td></tr>
+    <tr><th style="background:#f8f9fa;">현재 재고비</th><td style="color:#dc3545;"><strong>{actual_ratio:.2f}</strong></td></tr>
+    <tr><th style="background:#f8f9fa;">위험재고비 기준</th><td>{danger_threshold:.2f}</td></tr>
+  </table>
+  <p style="margin-top: 16px; color: #666;">즉시 재고 확인 및 조치가 필요합니다.</p>
+  <p style="color: #999; font-size: 12px;">— SCHBC BBMS 자동 알람 시스템</p>
+</body>
+</html>
 """
-        
-        return {
-            'subject': subject,
-            'body': body
-        }
-    
-    @staticmethod
-    def log_alert(alert_data: Dict):
-        """알림 로그 기록"""
-        logger.warning(
-            f"Low inventory alert: {alert_data.get('blood_type')} "
-            f"{alert_data.get('preparation')} - "
-            f"Current: {alert_data.get('current_qty')}, "
-            f"Threshold: {alert_data.get('threshold')}"
-        )
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = SMTP_USER
+        msg["To"] = ", ".join(recipients)
+
+        msg.attach(MIMEText(body, "html", "utf-8"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_USER, recipients, msg.as_string())
+
+        logger.info(f"위험재고 알람 발송 완료: {blood_type}형 → {recipients}")
+    except Exception as e:
+        logger.error(f"이메일 발송 실패: {e}")
