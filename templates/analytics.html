@@ -151,6 +151,29 @@
             text-align: center;
         }
 
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .chart-toggle-btn {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chart-toggle-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
         /* 알람 히스토리 테이블 */
         .alert-section {
             background: white;
@@ -230,18 +253,32 @@
 
         <section class="charts-grid">
             <div class="chart-container">
-                <h2>📈 RBC (PRBC + Pre-R) 재고 추이</h2>
-                <canvas id="rbcChart"></canvas>
+                <div class="chart-header">
+                    <h2 style="margin:0;">📈 RBC (PRBC + Pre-R) 재고 추이</h2>
+                    <div>
+                        <button id="btnRbcUnit" class="chart-toggle-btn active" onclick="toggleRbcView('unit')">수량(Unit)
+                            보기</button>
+                        <button id="btnRbcRatio" class="chart-toggle-btn" onclick="toggleRbcView('ratio')">적정재고비(SF)
+                            보기</button>
+                    </div>
+                </div>
+                <div style="height: 290px;">
+                    <canvas id="rbcChart"></canvas>
+                </div>
             </div>
             <div class="chart-container">
-                <h2>📈 FFP 재고 추이</h2>
-                <canvas id="ffpChart"></canvas>
+                <div class="chart-header">
+                    <h2 style="margin:0; width:100%; text-align:center;">📈 FFP 재고 추이</h2>
+                </div>
+                <div style="height: 290px;">
+                    <canvas id="ffpChart"></canvas>
+                </div>
             </div>
         </section>
 
-        <section class="alert-section">
+        <section class="alert-section" style="margin-bottom: 24px;">
             <h2>⚠️ 목표재고량 미달 발생 알람 히스토리 (RBC)</h2>
-            <div style="max-height: 400px; overflow-y: auto;">
+            <div style="max-height: 300px; overflow-y: auto;">
                 <table class="alert-table" id="alertTable">
                     <thead>
                         <tr>
@@ -259,11 +296,36 @@
                 </table>
             </div>
         </section>
+
+        <section class="alert-section">
+            <h2 style="color: #4a5568;">📝 최근 재고 실사 및 수정 기록 (Audit Log)</h2>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table class="alert-table" id="auditTable">
+                    <thead>
+                        <tr>
+                            <th>일시</th>
+                            <th>사용자(작업자)</th>
+                            <th>혈액형</th>
+                            <th>제제명</th>
+                            <th>변동량</th>
+                            <th>적합 판정</th>
+                            <th>비고(사유)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- JS injected -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
 
     <script>
         let rbcChartIns = null;
         let ffpChartIns = null;
+
+        let globalRbcData = null; // 원본 통계 데이터를 보존
+        let currentRbcView = 'unit'; // 'unit' | 'ratio'
 
         // 색상 팔레트 설정 (A=빨강, B=자주, O=파랑, AB=초록/금)
         const colors = {
@@ -296,8 +358,9 @@
                 if (!res.ok) throw new Error(data.detail || '가져오기 실패');
 
                 renderSummary(data.summary);
-                renderChart('rbcChart', rbcChartIns, data.chart_rbc, 'RBC (적혈구) 재고');
-                renderChart('ffpChart', ffpChartIns, data.chart_ffp, 'FFP (신선동결혈장) 재고');
+                globalRbcData = data.chart_rbc; // 원본 보존
+                renderRbcChart();
+                renderChart('ffpChart', ffpChartIns, data.chart_ffp, 'FFP (신선동결혈장) 재고', false);
                 renderAlerts(data.alerts);
 
             } catch (e) {
@@ -313,7 +376,60 @@
             document.getElementById('valMinRbc').textContent = summary.min_rbc.toLocaleString() + ' Unit';
         }
 
-        function renderChart(canvasId, chartInstance, chartData, labelPrefix) {
+        function toggleRbcView(viewType) {
+            currentRbcView = viewType;
+            document.getElementById('btnRbcUnit').classList.toggle('active', viewType === 'unit');
+            document.getElementById('btnRbcRatio').classList.toggle('active', viewType === 'ratio');
+            renderRbcChart();
+        }
+
+        function renderRbcChart() {
+            if (!globalRbcData) return;
+
+            // viewType에 따라 사용할 series 선택 (안전하게 fallback 추가)
+            const targetSeries = (currentRbcView === 'ratio' && globalRbcData.ratio_series)
+                ? globalRbcData.ratio_series
+                : globalRbcData.series;
+
+            const yAxisLabel = currentRbcView === 'ratio' ? '적정재고비 (SF 배수)' : '수량 (Unit)';
+
+            const ctx = document.getElementById('rbcChart').getContext('2d');
+            const datasets = Object.keys(targetSeries).map(bt => {
+                return {
+                    label: `${bt}형`,
+                    data: targetSeries[bt],
+                    borderColor: colors[bt] || '#333',
+                    backgroundColor: colors[bt] || '#333',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    pointRadius: 2
+                };
+            });
+
+            if (rbcChartIns) rbcChartIns.destroy();
+            rbcChartIns = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: globalRbcData.dates,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: yAxisLabel }
+                        }
+                    },
+                    plugins: {
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+        }
+
+        function renderChart(canvasId, chartInstance, chartData, labelPrefix, isRbc = false) {
             const ctx = document.getElementById(canvasId).getContext('2d');
 
             const datasets = Object.keys(chartData.series).map(bt => {
@@ -340,7 +456,10 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { beginAtZero: true }
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: '수량 (Unit)' }
+                        }
                     },
                     plugins: {
                         tooltip: { mode: 'index', intersect: false }
@@ -348,7 +467,6 @@
                 }
             });
 
-            if (canvasId === 'rbcChart') rbcChartIns = newChart;
             if (canvasId === 'ffpChart') ffpChartIns = newChart;
         }
 
@@ -375,10 +493,53 @@
             });
         }
 
+        async function fetchAuditLogs() {
+            try {
+                const res = await fetch('/api/inventory/logs?limit=100');
+                if (!res.ok) throw new Error('실사 기록을 불러오는데 실패했습니다.');
+                const logs = await res.json();
+
+                const tbody = document.querySelector('#auditTable tbody');
+                tbody.innerHTML = '';
+
+                if (!logs || logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">재고 변경 기록이 없습니다.</td></tr>';
+                    return;
+                }
+
+                logs.forEach(log => {
+                    const tr = document.createElement('tr');
+
+                    // 변동량 색상 (양수면 파란색, 음수면 빨간색)
+                    let deltaStr = log.delta > 0 ? `+${log.delta}` : log.delta;
+                    let deltaColor = log.delta > 0 ? '#0d47a1' : (log.delta < 0 ? '#d32f2f' : '#555');
+
+                    // 적합 판정 (유효기간, 육안)
+                    let checkStr = (log.expiry_ok && log.visual_ok)
+                        ? '<span style="color:#2e7d32; font-weight:600;">적합</span>'
+                        : '<span style="color:#d32f2f; font-weight:600;">부적합 포함</span>';
+
+                    tr.innerHTML = `
+                        <td>${log.log_date}</td>
+                        <td>${log.user_name}</td>
+                        <td><strong>${log.blood_type}</strong></td>
+                        <td>${log.preparation}</td>
+                        <td style="color:${deltaColor}; font-weight:bold;">${deltaStr}</td>
+                        <td>${checkStr}</td>
+                        <td style="color:#666;">${log.remark}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
         // 초기 실행
         window.addEventListener('DOMContentLoaded', () => {
             setDateDefaults();
             fetchAnalytics();
+            fetchAuditLogs();
         });
     </script>
 </body>

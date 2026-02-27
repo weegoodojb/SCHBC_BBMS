@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 import pandas as pd
 from datetime import datetime, timedelta
-from app.database.models import Inventory, StockLog, BloodMaster, SafetyConfig
+from app.database.models import Inventory, StockLog, BloodMaster, SafetyConfig, MasterConfig
 
 def get_analytics_data(db: Session, start_date: str, end_date: str):
     """
@@ -112,20 +112,46 @@ def get_analytics_data(db: Session, start_date: str, end_date: str):
     ffp_preps = [k for k,v in prep_map.items() if v == "FFP"]
     df_ffp = df_period[df_period['prep_id'].isin(ffp_preps)].groupby(['date', 'blood_type'])['qty'].sum().reset_index()
     
-    # 날짜 정렬 (과거 -> 현재)
     dates = sorted(list(set(df_period['date'].tolist())))
     
-    # 차트 데이터 생성 유틸
-    def make_chart_data(df_group):
+    # RBC 관련 설정값 (daily_consumption_rate) 불러오기
+    master_configs = db.query(MasterConfig).all()
+    # DCR 매핑: (blood_type) -> sum of DCR for RBC preps
+    dcr_map = {'A': 0.0, 'B': 0.0, 'O': 0.0, 'AB': 0.0}
+    for mc in master_configs:
+        # PRBC, Pre-R, Prefiltered 등 RBC 계열인지 확인
+        if mc.prep_id in rbc_preps and mc.daily_consumption_rate:
+            if mc.blood_type in dcr_map:
+                 dcr_map[mc.blood_type] += mc.daily_consumption_rate
+            elif not mc.blood_type:
+                # 공통 설정인 경우 모든 혈액형에 가산 (현재 시스템 구조상 혈액형별로 분리되어 있을 것임)
+                for bt in dcr_map.keys():
+                    dcr_map[bt] += mc.daily_consumption_rate
+
+    # 차트 데이터 생성 유틸 (비율도 함께 계산)
+    def make_chart_data(df_group, is_rbc=False):
         series = {'A': [], 'B': [], 'O': [], 'AB': []}
+        ratio_series = {'A': [], 'B': [], 'O': [], 'AB': []} if is_rbc else None
+
         for d in dates:
             day_data = df_group[df_group['date'] == d]
             for bt in ['A', 'B', 'O', 'AB']:
-                val = day_data[day_data['blood_type'] == bt]['qty'].sum()
-                series[bt].append(int(val))
-        return {'dates': dates, 'series': series}
+                qty = day_data[day_data['blood_type'] == bt]['qty'].sum()
+                qty = int(qty)
+                series[bt].append(qty)
+                
+                # RBC인 경우 ratio 산출 (수량 / DCR)
+                if is_rbc:
+                    dcr = dcr_map.get(bt, 0.0)
+                    ratio = round(qty / dcr, 1) if dcr > 0 else 0.0
+                    ratio_series[bt].append(ratio)
 
-    chart_rbc = make_chart_data(df_rbc)
+        res = {'dates': dates, 'series': series}
+        if is_rbc:
+            res['ratio_series'] = ratio_series
+        return res
+
+    chart_rbc = make_chart_data(df_rbc, is_rbc=True)
     chart_ffp = make_chart_data(df_ffp)
     
     # -- 3. 목표 미달 알람(Alert) 히스토리 추출 (해당 기간) --

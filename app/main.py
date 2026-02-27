@@ -26,14 +26,17 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Supabase PostgreSQL 연결 성공")
         try:
             from sqlalchemy import text
-            from app.database.database import SessionLocal
+            from app.database.database import SessionLocal, engine
+            from app.database.models import Base
             db = SessionLocal()
+            # 자동으로 누락된 테이블(ex: InboundHistory) 생성
+            Base.metadata.create_all(bind=engine)
             db.execute(text("ALTER TABLE stock_log ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id);"))
             db.execute(text("ALTER TABLE stock_log ADD COLUMN IF NOT EXISTS expiry_ok BOOLEAN DEFAULT TRUE;"))
             db.execute(text("ALTER TABLE stock_log ADD COLUMN IF NOT EXISTS visual_ok BOOLEAN DEFAULT TRUE;"))
             db.commit()
             db.close()
-            logger.info("✅ DB 스키마 마이그레이션 확인 (stock_log 확장 필드)")
+            logger.info("✅ DB 스키마 마이그레이션 확인 (stock_log 확장 필드 및 신규 테이블 확인)")
         except Exception as e:
             logger.error(f"⚠️ DB 스키마 자동 패치 실패: {e}")
     else:

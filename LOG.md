@@ -1,5 +1,12 @@
 # SCHBC BBMS 프로젝트 로그
 
+## 2026-02-27: Phase 4 (입고 및 통계 강화) 구현 완료
+
+- **Phase 4.1**: `models.py`에 `InboundHistory` (통계 전용 엑셀 입고내역) 테이블 생성 및 `main.py` lifespan에서 자동 테이블 마이그레이션 적용.
+- **Phase 4.2**: `/api/inventory/upload` API 수정하여 여러 개의 엑셀 파일을 파싱해 곧바로 `InboundHistory`에 기록하도록 구현 (기존 `Inventory`/`StockLog`에 간섭하지 않음). UI에서 매핑 모달 제거 및 단순 통계 저장기능으로 개편.
+- **Phase 4.3**: `analytics_service.py`에서 `MasterConfig`의 `daily_consumption_rate`를 호출하여 RBC 재고량 대비 적정재고비(SF) 계산 추가. `analytics.html`의 📈 RBC 차트에 [수량(Unit) 보기] 및 [적정재고비(SF) 보기] 토글 버튼 및 렌더링 스위칭 로직 구현.
+- **Phase 4.4**: 수동 재고 실사 변경 내역을 추적하기 위해 `app/api/inventory.py`에 `GET /logs` 엔드포인트 구현. `analytics.html` 하단에 "📝 최근 재고 실사 및 수정 기록 (Audit Log)" 테이블을 탑재하여 과거 변경 이력까지 직관적 조회.
+
 ## 2026-02-25: UI/UX 추가 구현 및 감사 필드 적용, Auth 버그픽스
 
 - **auth.py 픽스**: `verify_password` 인자 순서 오류를 정상화하고, **bcrypt의 72바이트 입력 제한 에러(password cannot be longer than 72 bytes)를 원천 차단**하기 위해 `security.py`에 SHA-256 사전 해싱(Pre-hashing) 후 Base64 인코딩 방식을 적용하여 근본적으로 버그 해결 완료

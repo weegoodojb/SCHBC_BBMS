@@ -5,7 +5,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy.orm import Session
 from app.database.database import get_db
-from app.database.models import BloodMaster, Inventory, StockLog
+from sqlalchemy import desc
+from app.database.models import BloodMaster, Inventory, StockLog, InboundHistory, User
 from app.schemas.schemas import (
     InventoryStatusResponse,
     InventoryItem,
@@ -240,24 +241,84 @@ def bulk_save_inventory(request: BulkSaveRequest, db: Session = Depends(get_db))
         results = results
     )
 
+from typing import List
+
 @router.post("/upload")
-async def upload_excel_inventory(file: UploadFile = File(...)):
+async def upload_excel_inventory(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
     """
-    엑셀 파일을 업로드하여 혈액형/제제명 수량을 집계합니다.
-    (UI에서 미리보기 및 수동 맵핑 후 bulk-save로 최종 저장)
+    (통계용) 엑셀 파일(여러 개 가능)을 업로드하여 입고 내역(InboundHistory)에 즉시 저장합니다.
+    주의: 이 데이터는 재고량(Inventory)이나 실사로그(StockLog)에 반영되지 않는 순수 통계 데이터입니다.
     """
-    if not file.filename.endswith((".xlsx", ".xls")):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="엑셀 파일(.xlsx, .xls)만 업로드 가능합니다."
-        )
-        
-    try:
-        contents = await file.read()
-        result = parse_excel_inventory(contents)
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"엑셀 파일 처리 중 오류: {str(e)}"
-        )
+    total_processed = 0
+    total_saved = 0
+    
+    # 혈액제제명 -> prep_id 매핑을 위해 BloodMaster 조회
+    preps = db.query(BloodMaster).all()
+    prep_map = {p.preparation: p.id for p in preps}
+    
+    for file in files:
+        if not file.filename.endswith((".xlsx", ".xls")):
+            continue # 확장자 안맞는 파일은 조용히 무시 (혹은 에러처리)
+            
+        try:
+            contents = await file.read()
+            # 엑셀 파싱 (기존 서비스 재활용 - 반환 포맷: {"items": [{"blood_type": "A", "preparation": "PRBC", "qty": 10, ...}], ...})
+            result = parse_excel_inventory(contents)
+            total_processed += 1
+            
+            for item in result["items"]:
+                # 매핑된(시스템에 존재하는) 제제명만 저장
+                if item["is_mapped"] and item["preparation"] in prep_map:
+                    inbound_record = InboundHistory(
+                        receive_date=datetime.now().date(), # 실제론 엑셀 기준일을 뽑아야 하나, 현재 parse_excel_inventory는 집계만 하므로 업로드일 사용
+                        blood_type=item["blood_type"],
+                        prep_id=prep_map[item["preparation"]],
+                        qty=item["qty"]
+                    )
+                    db.add(inbound_record)
+                    total_saved += item["qty"]
+                    
+        except Exception as e:
+            # 여러 파일 중 하나가 실패하더라도 전체를 롤백할지, 스킵할지 결정
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"엑셀 파일({file.filename}) 처리 중 오류: {str(e)}"
+            )
+            
+    db.commit()
+    
+    return {
+        "message": "입고 통계 저장 완료",
+        "files_processed": total_processed,
+        "total_qty_saved": total_saved
+    }
+
+@router.get("/logs")
+def get_audit_logs(limit: int = 100, db: Session = Depends(get_db)):
+    """
+    재고 실사 기록(StockLog) 최신순 조회
+    - InboundHistory(엑셀업로드 통계)는 포함하지 않음. 오직 수동 실사내역만.
+    """
+    logs = db.query(StockLog, User.name, BloodMaster.preparation)\
+        .outerjoin(User, StockLog.user_id == User.id)\
+        .outerjoin(BloodMaster, StockLog.prep_id == BloodMaster.id)\
+        .order_by(desc(StockLog.log_date))\
+        .limit(limit)\
+        .all()
+    
+    result = []
+    for log, uname, prep in logs:
+        delta = log.in_qty - log.out_qty
+        result.append({
+            "id": log.id,
+            "log_date": log.log_date.strftime("%Y-%m-%d %H:%M"),
+            "blood_type": log.blood_type,
+            "preparation": prep or "알 수 없음",
+            "delta": delta,
+            "remark": log.remark or "",
+            "user_name": uname or "시스템/알 수 없음",
+            "expiry_ok": log.expiry_ok,
+            "visual_ok": log.visual_ok
+        })
+    return result

@@ -5,7 +5,7 @@ Database Models for SCHBC BBMS
 """
 from datetime import datetime
 from math import ceil
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, UniqueConstraint, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, Date, ForeignKey, Text, UniqueConstraint, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -175,6 +175,25 @@ class StockLog(Base):
 
     def __repr__(self):
         return f"<StockLog({self.blood_type}, in={self.in_qty}, out={self.out_qty})>"
+
+
+# ==================== Inbound ====================
+
+class InboundHistory(Base):
+    """(통계용) 엑셀 업로드 입고 내역 테이블"""
+    __tablename__ = 'inbound_history'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    receive_date = Column(Date, nullable=False, default=datetime.now().date, comment='입고일자 (엑셀기준)')
+    blood_type = Column(String(5), nullable=False, comment='혈액형')
+    prep_id = Column(Integer, ForeignKey('blood_master.id'), nullable=False, comment='제제 ID')
+    qty = Column(Integer, nullable=False, default=0, comment='입고량')
+    created_at = Column(DateTime, default=datetime.now, comment='생성일시 (업로드일시)')
+
+    blood_prep = relationship('BloodMaster')
+
+    def __repr__(self):
+        return f"<InboundHistory(date={self.receive_date}, {self.blood_type}, prep={self.prep_id}, qty={self.qty})>"
 
 
 # ==================== Helper ====================
