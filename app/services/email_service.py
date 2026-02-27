@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_USER = "goodojb@gmail.com"
-SMTP_PASSWORD = "Joanne@0619"
+SMTP_PASSWORD = "wrniltvhylhmolbs"
 
 
 def send_danger_alert(blood_type: str, rbc_qty: int, actual_ratio: float, danger_threshold: float, recipients: List[str]):
