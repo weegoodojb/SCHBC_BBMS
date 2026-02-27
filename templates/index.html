@@ -726,6 +726,7 @@
         let token = null;
         let currentUser = null;
         let safetyTargets = {};  // key: `${bt}_${prepName}` → target_qty
+        let originalSF = {};     // key: `${bt}` → original safety_factor value
 
         // ── 테이블 헤더 생성 ────────────────────────────────────────────────────
         function buildHeader() {
@@ -1070,6 +1071,8 @@
                         const fallback = { daily_consumption_rate: 3.0, safety_factor: 2.0 };
                         const conf = exact || common || fallback;
 
+                        originalSF[bt] = conf.safety_factor;
+
                         // 권한 체크: 관리자만 DCR 수정 가능
                         const dcrDisabled = currentUser.is_admin ? '' : 'disabled';
                         const dcrColor = currentUser.is_admin ? '' : 'background-color:#eaeaea; color:#888;';
@@ -1105,7 +1108,21 @@
 
         async function saveAllRbcFactors() {
             const reason = document.getElementById('adminReason').value.trim();
-            if (reason.length < 5) { showMsg('재고비 변경사유는 5자 이상 입력하세요', 'error'); return; }
+
+            let sfChanged = false;
+            for (const bt of BLOOD_TYPES) {
+                const sf = parseFloat(document.getElementById('sf_' + bt).value);
+                if (sf !== originalSF[bt]) {
+                    sfChanged = true;
+                }
+            }
+
+            if (sfChanged && reason.length < 5) {
+                showMsg('적정재고비(SF) 변경시 재고비 변경사유는 5자 이상 필수입니다', 'error');
+                return;
+            }
+
+            const finalReason = reason || "1일재고 수정";
 
             const payloads = [];
             for (const bt of BLOOD_TYPES) {
@@ -1118,7 +1135,7 @@
                 payloads.push({
                     daily_consumption_rate: dcr,
                     safety_factor: sf,
-                    change_reason: reason,
+                    change_reason: finalReason,
                     blood_type: bt,
                     changed_by: currentUser.emp_id
                 });

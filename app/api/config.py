@@ -42,7 +42,7 @@ class RBCFactorsUpdate(BaseModel):
     """RBC 재고비 수정 요청 - 개별 혈액형 적용"""
     daily_consumption_rate: float = Field(..., ge=0.1, le=30.0, description="1일 재고비")
     safety_factor: float = Field(..., ge=0.5, le=10.0, description="적정재고비 배수")
-    change_reason: str = Field(..., min_length=5, description="변경 사유 (5자 이상 필수)")
+    change_reason: str = Field("", description="변경 사유 (SF 변경시 5자 이상 필수, 프론트 검증)")
     blood_type: str = Field(..., description="특정 혈액형 (필수)")
     prep_id: Optional[int] = Field(None, description="특정 제제 ID")
     changed_by: Optional[str] = Field(None, description="변경자 사번")

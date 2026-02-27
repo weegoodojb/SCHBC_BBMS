@@ -165,7 +165,7 @@ class StockLog(Base):
     remark = Column(Text, comment='비고')
     
     # Audit trail fields
-    user_id = Column(Integer, ForeignKey('user.id'), nullable=True, comment='작업자 ID')
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True, comment='작업자 ID')
     expiry_ok = Column(Boolean, default=True, comment='유효기간 확인')
     visual_ok = Column(Boolean, default=True, comment='육안/성상 확인')
     
