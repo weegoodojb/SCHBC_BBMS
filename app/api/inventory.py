@@ -21,7 +21,6 @@ from app.services.inventory_service import (
     update_inventory_and_log
 )
 from app.services.alert_service import check_blood_type_rbc_alert, check_single_item_alert
-from app.services.email_service import EmailService
 from app.services.excel_service import parse_excel_inventory
 
 router = APIRouter(prefix="/api/inventory", tags=["Inventory"])
