@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 import logging
 
 from app.api import auth, inventory, config, users
+from app.api import admin as admin_api
 from app.core.config import settings
 from app.database.database import test_connection
 
@@ -71,6 +72,7 @@ app.include_router(inventory.router)
 app.include_router(config.router, prefix="/api/config", tags=["Configuration"])
 app.include_router(users.router)
 app.include_router(analytics.router)
+app.include_router(admin_api.router)
 
 
 @app.get("/", response_class=HTMLResponse)
