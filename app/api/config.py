@@ -39,12 +39,12 @@ class RBCFactorsResponse(BaseModel):
 
 
 class RBCFactorsUpdate(BaseModel):
-    """RBC 재고비 수정 요청 - 공통 적용 또는 혈액형/제제별 적용"""
+    """RBC 재고비 수정 요청 - 개별 혈액형 적용"""
     daily_consumption_rate: float = Field(..., ge=0.1, le=30.0, description="1일 재고비")
     safety_factor: float = Field(..., ge=0.5, le=10.0, description="적정재고비 배수")
     change_reason: str = Field(..., min_length=5, description="변경 사유 (5자 이상 필수)")
-    blood_type: Optional[str] = Field(None, description="특정 혈액형 (미입력=전체 공통 적용)")
-    prep_id: Optional[int] = Field(None, description="특정 제제 ID (미입력=전체 공통 적용)")
+    blood_type: str = Field(..., description="특정 혈액형 (필수)")
+    prep_id: Optional[int] = Field(None, description="특정 제제 ID")
     changed_by: Optional[str] = Field(None, description="변경자 사번")
 
 
@@ -137,79 +137,92 @@ def get_rbc_factors(db: Session = Depends(get_db)):
 @router.put("/rbc-factors", response_model=dict)
 def update_rbc_factors(update: RBCFactorsUpdate, db: Session = Depends(get_db)):
     """
-    RBC 재고비 수정 (관리자 전용)
-    - blood_type/prep_id 미입력 → 전체 혈액형 공통 일괄 적용
-    - blood_type/prep_id 입력 → 해당 혈액형/제제만 적용
-    변경 사유 필수, 히스토리 자동 저장
+    RBC 재고비 개별 혈액형별 수정 적용
     """
-    blood_types = ['A', 'B', 'O', 'AB']
+    import math
+    from app.database.models import SafetyConfig
 
-    def _upsert_config(blood_type: Optional[str], prep_id: Optional[int]):
-        """단일 MasterConfig 행 upsert"""
-        existing = db.query(MasterConfig).filter(
-            MasterConfig.blood_type == blood_type if blood_type else MasterConfig.blood_type.is_(None),
-            MasterConfig.prep_id == prep_id if prep_id else MasterConfig.prep_id.is_(None),
-            MasterConfig.config_key == 'rbc_factors'
-        ).first()
+    if update.blood_type not in ['A', 'B', 'O', 'AB']:
+        raise HTTPException(status_code=400, detail="Invalid blood_type")
 
-        old_dcr = existing.daily_consumption_rate if existing else None
-        old_sf = existing.safety_factor if existing else None
+    # 1. MasterConfig upsert
+    existing = db.query(MasterConfig).filter(
+        MasterConfig.blood_type == update.blood_type,
+        MasterConfig.prep_id == update.prep_id if update.prep_id else MasterConfig.prep_id.is_(None),
+        MasterConfig.config_key == 'rbc_factors'
+    ).first()
 
-        if existing:
-            existing.daily_consumption_rate = update.daily_consumption_rate
-            existing.safety_factor = update.safety_factor
-            existing.updated_at = datetime.now()
-        else:
-            new_config = MasterConfig(
-                blood_type=blood_type,
-                prep_id=prep_id,
-                config_key='rbc_factors',
-                config_value=f"dcr={update.daily_consumption_rate},sf={update.safety_factor}",
-                daily_consumption_rate=update.daily_consumption_rate,
-                safety_factor=update.safety_factor
-            )
-            db.add(new_config)
+    old_dcr = existing.daily_consumption_rate if existing else None
+    old_sf = existing.safety_factor if existing else None
 
-        # 히스토리 저장 (dcr 기준)
-        if old_dcr != update.daily_consumption_rate or old_sf != update.safety_factor:
-            db.add(InventoryRatioHistory(
-                blood_type=blood_type,
-                prep_id=prep_id,
-                config_key='daily_consumption_rate',
-                old_factor=old_dcr,
-                new_factor=update.daily_consumption_rate,
-                change_reason=update.change_reason,
-                changed_by=update.changed_by
-            ))
-            db.add(InventoryRatioHistory(
-                blood_type=blood_type,
-                prep_id=prep_id,
-                config_key='safety_factor',
-                old_factor=old_sf,
-                new_factor=update.safety_factor,
-                change_reason=update.change_reason,
-                changed_by=update.changed_by
-            ))
-
-    # 공통 일괄 적용 (혈액형/제제별 미지정)
-    if not update.blood_type and not update.prep_id:
-        # 공통 행 저장
-        _upsert_config(None, None)
-        applied_to = "전체 공통 (공통 설정 행)"
+    if existing:
+        existing.daily_consumption_rate = update.daily_consumption_rate
+        existing.safety_factor = update.safety_factor
+        existing.updated_at = datetime.now()
     else:
-        # 특정 혈액형/제제만 적용
-        _upsert_config(update.blood_type, update.prep_id)
-        applied_to = f"{update.blood_type or 'ALL'} / prep_id={update.prep_id or 'ALL'}"
+        new_config = MasterConfig(
+            blood_type=update.blood_type,
+            prep_id=update.prep_id,
+            config_key='rbc_factors',
+            config_value=f"dcr={update.daily_consumption_rate},sf={update.safety_factor}",
+            daily_consumption_rate=update.daily_consumption_rate,
+            safety_factor=update.safety_factor
+        )
+        db.add(new_config)
+
+    # 히스토리 추가
+    if old_dcr != update.daily_consumption_rate:
+        db.add(InventoryRatioHistory(
+            blood_type=update.blood_type,
+            prep_id=update.prep_id,
+            config_key='daily_consumption_rate',
+            old_factor=old_dcr,
+            new_factor=update.daily_consumption_rate,
+            change_reason=update.change_reason,
+            changed_by=update.changed_by
+        ))
+    if old_sf != update.safety_factor:
+        db.add(InventoryRatioHistory(
+            blood_type=update.blood_type,
+            prep_id=update.prep_id,
+            config_key='safety_factor',
+            old_factor=old_sf,
+            new_factor=update.safety_factor,
+            change_reason=update.change_reason,
+            changed_by=update.changed_by
+        ))
+
+    # 2. SafetyConfig 즉시 업데이트 (목표 재고수량 연산)
+    target = math.ceil(update.daily_consumption_rate * update.safety_factor)
+    if update.blood_type == 'O':
+        target += 4
+
+    # PRBC(1), Prefiltered(2)에 대한 target 분배 (Legacy ratio 기능 사용)
+    from app.services.inventory_service import get_rbc_ratio
+    ratio = get_rbc_ratio(db)
+    prbc_target = round(target * ratio)
+    prefiltered_target = target - prbc_target
+
+    # SafetyConfig 갱신
+    db.query(SafetyConfig).filter(
+        SafetyConfig.blood_type == update.blood_type,
+        SafetyConfig.prep_id == 1
+    ).update({"safety_qty": prbc_target})
+
+    db.query(SafetyConfig).filter(
+        SafetyConfig.blood_type == update.blood_type,
+        SafetyConfig.prep_id == 2
+    ).update({"safety_qty": prefiltered_target})
 
     db.commit()
 
     return {
         "success": True,
-        "applied_to": applied_to,
+        "applied_to": update.blood_type,
         "daily_consumption_rate": update.daily_consumption_rate,
         "safety_factor": update.safety_factor,
         "change_reason": update.change_reason,
-        "message": f"RBC 재고비 업데이트 완료: {applied_to}"
+        "message": f"RBC 재고비 업데이트 완료: {update.blood_type}"
     }
 
 

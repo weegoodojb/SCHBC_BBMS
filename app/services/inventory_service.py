@@ -139,8 +139,6 @@ def get_inventory_status(db: Session) -> Tuple[List[Dict], int, float]:
     rbc_ratio = get_rbc_ratio(db)
     inventories = db.query(Inventory).all()
 
-    rbc_targets = {bt: calculate_rbc_targets(db, bt) for bt in BLOOD_TYPES}
-
     items = []
     alert_count = 0
 
@@ -158,18 +156,14 @@ def get_inventory_status(db: Session) -> Tuple[List[Dict], int, float]:
         if is_alert:
             alert_count += 1
 
-        # 적정재고 결정
-        if blood_master.component == 'RBC':
-            targets = rbc_targets.get(inv.blood_type, {})
-            target_qty = targets.get(blood_master.preparation, None)
-        else:
-            # 기본 설정은 SafetyConfig의 safety_qty를 활용
-            target_qty = safety_config.safety_qty
-            # [기능 추가] Cryo AB형의 적정재고는 10으로 강제
-            if blood_master.component == 'Cryo' and inv.blood_type == 'AB':
-                target_qty = 10
+        # 적정재고는 DB(SafetyConfig)에 즉시 저장된 safety_qty 값을 사용
+        target_qty = safety_config.safety_qty
+        
+        # Cryo AB형 예외 처리 유지
+        if blood_master.component == 'Cryo' and inv.blood_type == 'AB':
+            target_qty = 10
 
-        request_qty = max(0, (target_qty or 0) - inv.current_qty)
+        request_qty = max(0, target_qty - inv.current_qty)
 
         items.append({
             'id': inv.id,
@@ -181,7 +175,7 @@ def get_inventory_status(db: Session) -> Tuple[List[Dict], int, float]:
             'safety_qty': safety_config.safety_qty,
             'alert_threshold': safety_config.alert_threshold,
             'target_qty': target_qty,
-            'request_qty': request_qty,  # 신청량 = 적정재고 - 현재고
+            'request_qty': request_qty,
             'is_alert': is_alert,
             'remark': inv.remark
         })
