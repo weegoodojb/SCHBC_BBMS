@@ -745,7 +745,7 @@
                     통계 대시보드</button>
                 <button class="logout-btn" id="btnUserManager" onclick="openUserModal()"
                     style="display:none; margin-right:5px; background: #5541a8; color: white; border-color: #5541a8;">👥
-                    사용자 관리</button>
+                    사용자 관리 (등록/권한)</button>
                 <button class="logout-btn" onclick="logout()">로그아웃</button>
             </div>
         </div>
@@ -876,8 +876,8 @@
         // prep_id: null → 저장 시 제제명 텍스트로 remark에 포함
         let customPreps = [];
 
-        let token = null;
-        let currentUser = null;
+        let token = localStorage.getItem('bbms_token') || null;
+        let currentUser = JSON.parse(localStorage.getItem('bbms_currentUser') || 'null');
         let safetyTargets = {};  // key: `${bt}_${prepName}` → target_qty
         let originalSF = {};     // key: `${bt}` → original safety_factor value
 
@@ -1015,6 +1015,9 @@
                 if (res.ok) {
                     token = res.data.access_token;
                     currentUser = res.data;
+                    localStorage.setItem('bbms_token', token);
+                    localStorage.setItem('bbms_currentUser', JSON.stringify(currentUser));
+
                     document.getElementById('loginSection').classList.remove('active');
                     document.getElementById('userInfo').classList.add('active');
                     document.getElementById('userName').textContent = res.data.name + ' 님';
@@ -1037,7 +1040,10 @@
         });
 
         function logout() {
-            token = null; currentUser = null;
+            token = null;
+            currentUser = null;
+            localStorage.removeItem('bbms_token');
+            localStorage.removeItem('bbms_currentUser');
             document.getElementById('loginSection').classList.add('active');
             document.getElementById('userInfo').classList.remove('active');
             const btnUserManager = document.getElementById('btnUserManager');
@@ -1479,8 +1485,24 @@
 
 
         // ── 초기화 ───────────────────────────────────────────────────────────────
+        function restoreLoginState() {
+            if (token && currentUser) {
+                document.getElementById('loginSection').classList.remove('active');
+                document.getElementById('userInfo').classList.add('active');
+                document.getElementById('userName').textContent = currentUser.name + ' 님';
+                const btnUserManager = document.getElementById('btnUserManager');
+                if (btnUserManager) btnUserManager.style.display = currentUser.is_admin ? 'inline-block' : 'none';
+                const btnAnalytics = document.getElementById('btnAnalytics');
+                if (btnAnalytics) btnAnalytics.style.display = 'inline-block';
+
+                loadSafetyTargets();
+                loadRbcFactors();
+            }
+        }
+
         buildHeader();
         buildBody();
+        restoreLoginState();
         attachEnterNavigation();   // Enter키 포커스 이동 초기 등록
     </script>
 </body>

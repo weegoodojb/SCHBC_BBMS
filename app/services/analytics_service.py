@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 import pandas as pd
 from datetime import datetime, timedelta
-from app.database.models import Inventory, StockLog, BloodMaster, SafetyConfig, MasterConfig
+from app.database.models import Inventory, StockLog, BloodMaster, SafetyConfig, MasterConfig, InboundHistory
 
 def get_analytics_data(db: Session, start_date: str, end_date: str):
     """
@@ -191,6 +191,35 @@ def get_analytics_data(db: Session, start_date: str, end_date: str):
     avg_rbc = float(df_rbc['qty'].sum() / len(dates)) if len(dates) > 0 and not df_rbc.empty else 0
     min_rbc = int(df_rbc.groupby('date')['qty'].sum().min()) if not df_rbc.empty else 0
     
+    # -- 4. 입고 통계 (InboundHistory) 추출 --
+    inbounds = db.query(
+        InboundHistory.receive_date.label('date'),
+        InboundHistory.blood_type,
+        InboundHistory.prep_id,
+        InboundHistory.qty
+    ).filter(
+        InboundHistory.receive_date >= start,
+        InboundHistory.receive_date <= end
+    ).all()
+    
+    df_inbound = pd.DataFrame(inbounds)
+    if not df_inbound.empty:
+        # date object to string to match 'dates'
+        df_inbound['date'] = df_inbound['date'].apply(lambda x: x.strftime('%Y-%m-%d'))
+    else:
+        df_inbound = pd.DataFrame(columns=['date', 'blood_type', 'prep_id', 'qty'])
+
+    df_inbound_rbc = df_inbound[df_inbound['prep_id'].isin(rbc_preps)]
+    if not df_inbound_rbc.empty:
+        df_inbound_rbc = df_inbound_rbc.groupby(['date', 'blood_type'])['qty'].sum().reset_index()
+        
+    df_inbound_ffp = df_inbound[df_inbound['prep_id'].isin(ffp_preps)]
+    if not df_inbound_ffp.empty:
+        df_inbound_ffp = df_inbound_ffp.groupby(['date', 'blood_type'])['qty'].sum().reset_index()
+
+    chart_inbound_rbc = make_chart_data(df_inbound_rbc)
+    chart_inbound_ffp = make_chart_data(df_inbound_ffp)
+
     return {
         "summary": {
             "total_in": total_in,
@@ -200,5 +229,7 @@ def get_analytics_data(db: Session, start_date: str, end_date: str):
         },
         "chart_rbc": chart_rbc,
         "chart_ffp": chart_ffp,
+        "chart_inbound_rbc": chart_inbound_rbc,
+        "chart_inbound_ffp": chart_inbound_ffp,
         "alerts": alerts
     }

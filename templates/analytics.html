@@ -276,6 +276,25 @@
             </div>
         </section>
 
+        <section class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h2 style="margin:0;">📈 RBC (PRBC + Pre-R) 엑셀 입고 통계</h2>
+                </div>
+                <div style="height: 290px;">
+                    <canvas id="rbcInboundChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h2 style="margin:0; width:100%; text-align:center;">📈 FFP 엑셀 입고 통계</h2>
+                </div>
+                <div style="height: 290px;">
+                    <canvas id="ffpInboundChart"></canvas>
+                </div>
+            </div>
+        </section>
+
         <section class="alert-section" style="margin-bottom: 24px;">
             <h2>⚠️ 목표재고량 미달 발생 알람 히스토리 (RBC)</h2>
             <div style="max-height: 300px; overflow-y: auto;">
@@ -468,6 +487,8 @@
             });
 
             if (canvasId === 'ffpChart') ffpChartIns = newChart;
+            if (canvasId === 'rbcInboundChart') rbcInboundChartIns = newChart;
+            if (canvasId === 'ffpInboundChart') ffpInboundChartIns = newChart;
         }
 
         function renderAlerts(alerts) {
