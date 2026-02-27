@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCHBC BBMS - 통계 대시보드</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            padding: 16px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 컨트롤 패널 */
+        .controls {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .controls input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .controls button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .controls button:hover {
+            background: #5a6ed7;
+        }
+
+        /* 요약 카드 */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .card h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .card .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        /* 차트 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-container {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            height: 350px;
+            position: relative;
+        }
+
+        .chart-container h2 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #333;
+            text-align: center;
+        }
+
+        /* 알람 히스토리 테이블 */
+        .alert-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .alert-section h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: #dc3545;
+        }
+
+        .alert-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .alert-table th,
+        .alert-table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+
+        .alert-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .alert-table tr:hover {
+            background: #fcfcfc;
+        }
+
+        .text-error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📊 혈액 재고 통계 대시보드</h1>
+            <a href="/" class="back-btn">⬅ 메인으로 돌아가기</a>
+        </header>
+
+        <section class="controls">
+            <label style="font-size:14px; font-weight:600; color:#555;">조회 기간</label>
+            <input type="date" id="startDate">
+            <span style="color:#888;">~</span>
+            <input type="date" id="endDate">
+            <button onclick="fetchAnalytics()">조회</button>
+        </section>
+
+        <section class="summary-grid">
+            <div class="card">
+                <h3>기간 내 총 입고량 (모든 제제)</h3>
+                <div class="value" id="valTotalIn">-</div>
+            </div>
+            <div class="card">
+                <h3>기간 내 총 소비량 (모든 제제)</h3>
+                <div class="value" id="valTotalOut">-</div>
+            </div>
+            <div class="card">
+                <h3>일평균 RBC 재고 총합</h3>
+                <div class="value" id="valAvgRbc">-</div>
+            </div>
+            <div class="card">
+                <h3>최소 RBC 재고 수치 기록</h3>
+                <div class="value" id="valMinRbc" style="color:#dc3545;">-</div>
+            </div>
+        </section>
+
+        <section class="charts-grid">
+            <div class="chart-container">
+                <h2>📈 RBC (PRBC + Pre-R) 재고 추이</h2>
+                <canvas id="rbcChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>📈 FFP 재고 추이</h2>
+                <canvas id="ffpChart"></canvas>
+            </div>
+        </section>
+
+        <section class="alert-section">
+            <h2>⚠️ 목표재고량 미달 발생 알람 히스토리 (RBC)</h2>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="alert-table" id="alertTable">
+                    <thead>
+                        <tr>
+                            <th>발생일자</th>
+                            <th>혈액형</th>
+                            <th>구분</th>
+                            <th>당시 재고량</th>
+                            <th>목표 재고량</th>
+                            <th>사유</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- JS injected -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        let rbcChartIns = null;
+        let ffpChartIns = null;
+
+        // 색상 팔레트 설정 (A=빨강, B=자주, O=파랑, AB=초록/금)
+        const colors = {
+            'A': '#e65100',
+            'B': '#b71c1c',
+            'O': '#0d47a1',
+            'AB': '#1b5e20'
+        };
+
+        function setDateDefaults() {
+            const today = new Date();
+            const lastMonth = new Date();
+            lastMonth.setDate(today.getDate() - 30);
+
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = lastMonth.toISOString().split('T')[0];
+        }
+
+        async function fetchAnalytics() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            if (!start || !end) { alert('기간을 설정하세요.'); return; }
+
+            try {
+                // 토큰은 localStorage 등에 없으나 index.js와 달리 토큰검사가 없음
+                const res = await fetch(`/api/analytics/?start_date=${start}&end_date=${end}`);
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail || '가져오기 실패');
+
+                renderSummary(data.summary);
+                renderChart('rbcChart', rbcChartIns, data.chart_rbc, 'RBC (적혈구) 재고');
+                renderChart('ffpChart', ffpChartIns, data.chart_ffp, 'FFP (신선동결혈장) 재고');
+                renderAlerts(data.alerts);
+
+            } catch (e) {
+                console.error(e);
+                alert("통계 조회 실패: " + e.message);
+            }
+        }
+
+        function renderSummary(summary) {
+            document.getElementById('valTotalIn').textContent = summary.total_in.toLocaleString() + ' Unit';
+            document.getElementById('valTotalOut').textContent = summary.total_out.toLocaleString() + ' Unit';
+            document.getElementById('valAvgRbc').textContent = summary.avg_rbc.toFixed(1) + ' Unit';
+            document.getElementById('valMinRbc').textContent = summary.min_rbc.toLocaleString() + ' Unit';
+        }
+
+        function renderChart(canvasId, chartInstance, chartData, labelPrefix) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+
+            const datasets = Object.keys(chartData.series).map(bt => {
+                return {
+                    label: `${bt}형`,
+                    data: chartData.series[bt],
+                    borderColor: colors[bt] || '#333',
+                    backgroundColor: colors[bt] || '#333',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    pointRadius: 2
+                };
+            });
+
+            if (chartInstance) chartInstance.destroy();
+
+            const newChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.dates,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                    plugins: {
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+
+            if (canvasId === 'rbcChart') rbcChartIns = newChart;
+            if (canvasId === 'ffpChart') ffpChartIns = newChart;
+        }
+
+        function renderAlerts(alerts) {
+            const tbody = document.querySelector('#alertTable tbody');
+            tbody.innerHTML = '';
+
+            if (!alerts || alerts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">해당 기간 내 알람 내역이 없습니다. (훌륭합니다!)</td></tr>';
+                return;
+            }
+
+            alerts.forEach(a => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${a.date}</td>
+                    <td><strong>${a.blood_type}</strong></td>
+                    <td>${a.component}</td>
+                    <td class="text-error">${a.qty}</td>
+                    <td>${a.target}</td>
+                    <td style="color:#d32f2f;">${a.reason}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 초기 실행
+        window.addEventListener('DOMContentLoaded', () => {
+            setDateDefaults();
+            fetchAnalytics();
+        });
+    </script>
+</body>
+
+</html>

@@ -740,6 +740,9 @@
         <div class="user-info" id="userInfo">
             <span id="userName" style="font-size:13px;font-weight:600;"></span>
             <div>
+                <button class="logout-btn" id="btnAnalytics" onclick="window.location.href='/analytics'"
+                    style="display:none; margin-right:5px; background: #667eea; color: white; border-color: #667eea;">📊
+                    통계 대시보드</button>
                 <button class="logout-btn" id="btnUserManager" onclick="openUserModal()"
                     style="display:none; margin-right:5px; background: #5541a8; color: white; border-color: #5541a8;">👥
                     사용자 관리</button>
@@ -1032,6 +1035,8 @@
                     document.getElementById('userName').textContent = res.data.name + ' 님';
                     const btnUserManager = document.getElementById('btnUserManager');
                     if (btnUserManager) btnUserManager.style.display = res.data.is_admin ? 'inline-block' : 'none';
+                    const btnAnalytics = document.getElementById('btnAnalytics');
+                    if (btnAnalytics) btnAnalytics.style.display = 'inline-block';
                     showMsg('로그인 성공! 기준 정보를 불러오는 중...', 'success');
                     // 로그인 후 적정재고 기준만 로드 (최근 재고는 불러오지 않음)
                     await loadSafetyTargets();
@@ -1052,6 +1057,8 @@
             document.getElementById('userInfo').classList.remove('active');
             const btnUserManager = document.getElementById('btnUserManager');
             if (btnUserManager) btnUserManager.style.display = 'none';
+            const btnAnalytics = document.getElementById('btnAnalytics');
+            if (btnAnalytics) btnAnalytics.style.display = 'none';
             hideMsg();
         }
 

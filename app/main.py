@@ -60,17 +60,25 @@ app.add_middleware(
 # Static files (CSS, JS, images 등 향후 사용)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+from app.api import auth, inventory, config, users, analytics
+
 # API 라우터
 app.include_router(auth.router)
 app.include_router(inventory.router)
 app.include_router(config.router, prefix="/api/config", tags=["Configuration"])
 app.include_router(users.router)
+app.include_router(analytics.router)
 
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
     """메인 화면 - index.html 서빙"""
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/analytics", response_class=HTMLResponse)
+def page_analytics(request: Request):
+    """분석 대시보드 화면 - analytics.html 서빙"""
+    return templates.TemplateResponse("analytics.html", {"request": request})
 
 
 @app.get("/health")
