@@ -53,21 +53,39 @@ def create_missing_tables():
 
 @router.post("/reset-data")
 def reset_data(db: Session = Depends(get_db)):
-    """재고 수량 0 초기화, stock_log 및 inbound_history 전체 삭제"""
+    """
+    사용자(users) 제외 모든 데이터 초기화
+    보존: users, blood_master, master_config, safety_config, system_settings
+    초기화: inventory, stock_log, inbound_history, inventory_ratio_history,
+             blood_stocks, qc_results, result_type_mapping, test_items, test_lots
+    """
     try:
-        # inbound_history 전체 삭제
-        deleted_inbound = db.query(InboundHistory).delete()
-        # stock_log 전체 삭제
-        deleted_stocklog = db.query(StockLog).delete()
+        results = {}
+        # 외래키 순서 고려하여 삭제 (자식 → 부모 순)
+        tables_to_delete = [
+            "qc_results",
+            "result_type_mapping",
+            "test_items",
+            "test_lots",
+            "blood_stocks",
+            "inbound_history",
+            "stock_log",
+            "inventory_ratio_history",
+        ]
+        for tbl in tables_to_delete:
+            try:
+                r = db.execute(text(f"DELETE FROM {tbl}"))
+                results[tbl] = f"삭제 {r.rowcount}행"
+            except Exception as e:
+                results[tbl] = f"건너뜀 ({str(e)[:60]})"
+
         # inventory 수량 0으로 초기화
-        reset_count = db.query(Inventory).update({"current_qty": 0})
+        r = db.execute(text("UPDATE inventory SET current_qty = 0"))
+        results["inventory"] = f"수량 0 초기화 {r.rowcount}행"
+
         db.commit()
-        return {
-            "message": "데이터 초기화 완료",
-            "inventory_reset": reset_count,
-            "stocklog_deleted": deleted_stocklog,
-            "inbound_deleted": deleted_inbound
-        }
+        return {"message": "✅ 데이터 초기화 완료 (users 보존)", "details": results}
     except Exception as e:
         db.rollback()
         return {"error": str(e)}
+
