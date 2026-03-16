@@ -29,6 +29,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     # Find user by emp_id
     user = db.query(User).filter(User.emp_id == request.emp_id).first()
     print(f"로그인 시도 아이디: {request.emp_id}")
+    print(f"DEBUG user found: {user}")
     
     if not user:
         raise HTTPException(
@@ -40,6 +41,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     # Verify password (passlib's bcrypt: verify(plain_password, hashed_password))
     # DB hashes should be standard bcrypt strings (usually ~60 bytes, e.g. $2b$12$...)
     is_valid = verify_password(request.password, user.password_hash)
+    print(f"DEBUG is_valid: {is_valid}")
     
     if not is_valid:
         raise HTTPException(
